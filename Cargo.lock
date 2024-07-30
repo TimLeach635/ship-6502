@@ -3,5 +3,30 @@
 version = 3
 
 [[package]]
+name = "bitflags"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
+
+[[package]]
+name = "log"
+version = "0.4.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
+
+[[package]]
+name = "mos6502"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34cb1d486463a5e462bdd16f548ca28d0704f5e458055ddcd7f06de01fdcff36"
+dependencies = [
+ "bitflags",
+ "log",
+]
+
+[[package]]
 name = "ship_6502"
 version = "0.1.0"
+dependencies = [
+ "mos6502",
+]
