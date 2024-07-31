@@ -1,6 +1,8 @@
 use std::io;
 use std::io::Write;
 
+use minifb::Window;
+use minifb::WindowOptions;
 use mos6502::memory::Bus;
 use mos6502::memory::Memory;
 use mos6502::instruction::Nmos6502;
@@ -26,13 +28,24 @@ fn main() {
     cpu.memory.set_bytes(0x10, &program);
     cpu.registers.program_counter = 0x10;
 
-    cpu.run();
+    let mut window = Window::new(
+        "ship_6502",
+        32,
+        32,
+        WindowOptions { scale: minifb::Scale::X8, ..Default::default() }
+    ).expect("Error opening window");
 
-    let base: u16 = 0x0200;
-    for offset in 0u16..5u16 {
-        let loc = base + offset;
-        let byte = cpu.memory.get_byte(loc);
-        print!("{}", byte as char);
+    while window.is_open() {
+        let mut buffer: [u32; 32 * 32] = [0; 32 * 32];
+        for offset in 0usize..(32 * 32) {
+            let byte = cpu.memory.get_byte(0x0200 + (offset as u16));
+            match byte {
+                0x00 => buffer[offset] = 0x00000000,
+                _ => buffer[offset] = 0x00ffffff,
+            }
+        }
+        window.update_with_buffer(&buffer, 32, 32).expect("Error drawing buffer");
+
+        cpu.single_step();
     }
-    let _ = io::stdout().flush();
 }
