@@ -1,5 +1,4 @@
-use std::io;
-use std::io::Write;
+use std::fs::read;
 
 use minifb::Window;
 use minifb::WindowOptions;
@@ -9,24 +8,34 @@ use mos6502::instruction::Nmos6502;
 use mos6502::cpu;
 
 fn main() {
-    let program = [
-        0xa9, 0x48,         // LDA #$48 (ascii 'H')
-        0x8d, 0x00, 0x02,   // STA $0200
-        0xa9, 0x65,         // LDA #$65 (ascii 'e')
-        0x8d, 0x01, 0x02,   // STA $0201
-        0xa9, 0x6c,         // LDA #$6c (ascii 'l')
-        0x8d, 0x02, 0x02,   // STA $0202
-        0xa9, 0x6c,         // LDA #$6c (ascii 'l')
-        0x8d, 0x03, 0x02,   // STA $0203
-        0xa9, 0x6f,         // LDA #$6f (ascii 'o')
-        0x8d, 0x04, 0x02,   // STA $0204
-        0xff,               // end?
-    ];
+    let zp = match read("asm/zp.bin") {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("Error reading zp.bin: {}", err);
+            return;
+        }
+    };
+    let ram = match read("asm/ram.bin") {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("Error reading ram.bin: {}", err);
+            return;
+        }
+    };
+    let rom = match read("asm/rom.bin") {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("Error reading rom.bin: {}", err);
+            return;
+        }
+    };
 
     let mut cpu = cpu::CPU::new(Memory::new(), Nmos6502);
 
-    cpu.memory.set_bytes(0x10, &program);
-    cpu.registers.program_counter = 0x10;
+    cpu.memory.set_bytes(0x0000, &zp);
+    cpu.memory.set_bytes(0x0100, &ram);
+    cpu.memory.set_bytes(0x8000, &rom);
+    cpu.registers.program_counter = 0x8000;
 
     let mut window = Window::new(
         "ship_6502",
