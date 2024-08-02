@@ -7,6 +7,9 @@ use mos6502::memory::Memory;
 use mos6502::instruction::Nmos6502;
 use mos6502::cpu;
 
+const SCREEN_WIDTH: usize = 64;
+const SCREEN_HEIGHT: usize = 60;
+
 fn main() {
     let zp = match read("asm/zp.bin") {
         Ok(data) => data,
@@ -39,14 +42,14 @@ fn main() {
 
     let mut window = Window::new(
         "ship_6502",
-        32,
-        32,
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
         WindowOptions { scale: minifb::Scale::X8, ..Default::default() }
     ).expect("Error opening window");
 
     while window.is_open() {
-        let mut buffer: [u32; 32 * 32] = [0; 32 * 32];
-        for offset in 0usize..(32 * 32) {
+        let mut buffer: [u32; SCREEN_WIDTH * SCREEN_HEIGHT] = [0; SCREEN_WIDTH * SCREEN_HEIGHT];
+        for offset in 0usize..(SCREEN_WIDTH * SCREEN_HEIGHT) {
             let byte = cpu.memory.get_byte(0x0200 + (offset as u16));
             match byte {
                 0x00 => buffer[offset] = 0x00000000,
