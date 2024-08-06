@@ -7,11 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.14.1"
-buffer-graphics-lib = "0.18.0"
-byteorder = "1.5.0"
-image = "0.25.2"
 mos6502 = "0.6.0"
-tao = "0.20"
 
 # Optimisations recommended by Bevy: https://bevyengine.org/learn/quick-start/getting-started/setup/#compile-with-performance-optimizations
 [profile.dev]

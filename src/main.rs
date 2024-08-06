@@ -1,23 +1,12 @@
 use std::fs::read;
 
 use bevy::prelude::*;
-use bevy::render::render_asset::RenderAssetUsages;
-use buffer_graphics_lib::prelude::NewTextPos;
-use buffer_graphics_lib::prelude::TextPos;
-use buffer_graphics_lib::prelude::LIGHT_GRAY;
-use buffer_graphics_lib::text::PixelFont;
-use buffer_graphics_lib::text::Text;
-use buffer_graphics_lib::Graphics;
-use image::DynamicImage;
-use image::RgbaImage;
+use bevy::text::Text;
 use mos6502::cpu;
 use mos6502::cpu::CPU;
 use mos6502::instruction::Nmos6502;
 use mos6502::memory::Bus;
 use mos6502::memory::Memory;
-
-const SCREEN_WIDTH: u32 = 800;
-const SCREEN_HEIGHT: u32 = 600;
 
 #[derive(Resource)]
 struct Cpu(CPU<Memory, Nmos6502>);
@@ -60,21 +49,32 @@ fn setup_cpu(mut commands: Commands) {
     commands.insert_resource(Cpu(cpu));
 }
 
-fn setup_screen(mut commands: Commands) {
+fn setup_screen(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
+    let font = asset_server.load("fonts/oldschool_pc_font_pack/Mx437_IBM_VGA_8x16.ttf");
+    let text_style = TextStyle {
+        font: font.clone(),
+        font_size: 16.0,
+        ..default()
+    };
+
     commands.spawn(Camera2dBundle::default());
-    commands.spawn((Screen, SpriteBundle::default()));
+    commands.spawn((
+        Screen,
+        Text2dBundle {
+            text: Text::from_section("", text_style.clone()),
+            ..default()
+        },
+    ));
 }
 
 fn draw_screen(
     mut cpu: ResMut<Cpu>,
-    mut screens: Query<&mut Handle<Image>, With<Screen>>,
-    mut images: ResMut<Assets<Image>>,
+    mut query: Query<&mut Text, With<Screen>>,
 ) {
-    // Draw text to buffer
-    let mut buffer: [u8; (SCREEN_WIDTH * SCREEN_HEIGHT * 4) as usize] =
-        [0; (SCREEN_WIDTH * SCREEN_HEIGHT * 4) as usize];
-    let mut graphics =
-        Graphics::new(&mut buffer, SCREEN_WIDTH as usize, SCREEN_HEIGHT as usize).unwrap();
+    // Extract text from CPU's memory
     let mut line = String::new();
     for offset in 0..100 {
         let byte = cpu.0.memory.get_byte(0x0200 + offset);
@@ -83,27 +83,10 @@ fn draw_screen(
             byte => line.push(byte as char),
         }
     }
-    let text = Text::new(
-        &line,
-        TextPos::cr((0, 0)),
-        (LIGHT_GRAY, PixelFont::Standard8x10),
-    );
-    graphics.draw(&text);
 
-    // Load buffer into Bevy as an Image
-    let screen_image_buffer =
-        RgbaImage::from_raw(SCREEN_WIDTH, SCREEN_HEIGHT, buffer.to_vec()).unwrap();
-    let screen_image = Image::from_dynamic(
-        DynamicImage::ImageRgba8(screen_image_buffer),
-        false,
-        RenderAssetUsages::RENDER_WORLD,
-    );
-
-    let screen_image_handle = images.add(screen_image);
-
-    // Draw image to all screens
-    for mut handle in screens.iter_mut() {
-        *handle = screen_image_handle.clone_weak();
+    // Put it in the rendered text
+    for mut text in query.iter_mut() {
+        text.sections[0].value = line.clone();
     }
 }
 
