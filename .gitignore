@@ -1,4 +1,6 @@
-/target
-/raw
-/asm
+.vscode/
+
+target/
+raw/
+asm/
 run.ps1
