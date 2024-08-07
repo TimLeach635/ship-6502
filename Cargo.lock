@@ -2366,16 +2366,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mos6502"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34cb1d486463a5e462bdd16f548ca28d0704f5e458055ddcd7f06de01fdcff36"
-dependencies = [
- "bitflags 2.6.0",
- "log",
-]
-
-[[package]]
 name = "naga"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3237,7 +3227,6 @@ name = "ship_6502"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "mos6502",
 ]
 
 [[package]]

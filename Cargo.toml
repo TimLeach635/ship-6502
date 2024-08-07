@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.14.1"
-mos6502 = "0.6.0"
 
 # Optimisations recommended by Bevy: https://bevyengine.org/learn/quick-start/getting-started/setup/#compile-with-performance-optimizations
 [profile.dev]
