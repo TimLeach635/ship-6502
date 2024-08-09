@@ -1,3 +1,5 @@
+mod internals;
+
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
@@ -8,22 +10,23 @@ use bevy::render::render_resource::TextureFormat;
 use bevy::render::render_resource::TextureUsages;
 use bevy::render::view::RenderLayers;
 use bevy::text::Text;
+use internals::Processor;
 
 pub struct ComputerPlugin;
 impl Plugin for ComputerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_screen);
+        app.add_systems(Startup, setup_computer);
         app.add_systems(Update, (rotator_system, draw_screen));
     }
 }
 
 #[derive(Component)]
-struct Screen;
+struct Computer;
 
 #[derive(Component)]
 struct ScreenCuboid;
 
-fn setup_screen(
+fn setup_computer(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -78,31 +81,10 @@ fn setup_screen(
 
     // The stuff to render to the screen
     commands.spawn((
-        Screen,
+        Computer,
+        Processor,
         Text2dBundle {
-            text: Text::from_section("A quick brown fox jumps over the lazy dog.
-0123456789 ¿?¡!`'\"., <>()[]{} &@%*^#$\\/
-
-* Wieniläinen sioux'ta puhuva ökyzombie diggaa Åsan roquefort-tacoja.
-* Ça me fait peur de fêter noël là, sur cette île bizarroïde où une mère et sa
-môme essaient de me tuer avec un gâteau à la cigüe brûlé.
-* Zwölf Boxkämpfer jagten Eva quer über den Sylter Deich.
-* El pingüino Wenceslao hizo kilómetros bajo exhaustiva lluvia y frío, añoraba
-a su querido cachorro.
-
-┌─┬─┐ ╔═╦═╗ ╒═╤═╕ ╓─╥─╖
-│ │ │ ║ ║ ║ │ │ │ ║ ║ ║
-├─┼─┤ ╠═╬═╣ ╞═╪═╡ ╟─╫─╢
-└─┴─┘ ╚═╩═╝ ╘═╧═╛ ╙─╨─╜
-
-░░░░░ ▐▀█▀▌ .·∙•○°○•∙·.
-▒▒▒▒▒ ▐ █ ▌ ☺☻ ♥♦♣♠ ♪♫☼
-▓▓▓▓▓ ▐▀█▀▌  $ ¢ £ ¥ ₧
-█████ ▐▄█▄▌ ◄►▲▼ ←→↑↓↕↨
-
-⌠
-│dx ≡ Σ √x²ⁿ·δx
-⌡", text_style.clone()),
+            text: Text::from_section("", text_style.clone()),
             ..default()
         },
         first_pass_layer.clone(),
@@ -170,10 +152,9 @@ fn rotator_system(
 }
 
 fn draw_screen(
-    mut query: Query<&mut Text, With<Screen>>,
+    mut query: Query<(&mut Text, &Processor), With<Computer>>,
 ) {
-    // // Put it in the rendered text
-    // for mut text in query.iter_mut() {
-    //     text.sections[0].value = line.clone();
-    // }
+    for (mut text, processor) in query.iter_mut() {
+        text.sections[0].value = processor.get_screen().to_string();
+    }
 }
