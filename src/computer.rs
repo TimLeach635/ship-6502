@@ -10,7 +10,7 @@ use bevy::render::render_resource::TextureFormat;
 use bevy::render::render_resource::TextureUsages;
 use bevy::render::view::RenderLayers;
 use bevy::text::Text;
-use internals::Processor;
+use internals::Computer;
 
 pub struct ComputerPlugin;
 impl Plugin for ComputerPlugin {
@@ -19,9 +19,6 @@ impl Plugin for ComputerPlugin {
         app.add_systems(Update, (rotator_system, draw_screen));
     }
 }
-
-#[derive(Component)]
-struct Computer;
 
 #[derive(Component)]
 struct ScreenCuboid;
@@ -82,7 +79,6 @@ fn setup_computer(
     // The stuff to render to the screen
     commands.spawn((
         Computer,
-        Processor,
         Text2dBundle {
             text: Text::from_section("", text_style.clone()),
             ..default()
@@ -124,8 +120,12 @@ fn setup_computer(
         PbrBundle {
             mesh: cube_handle,
             material: material_handle,
-            transform: Transform::from_xyz(0.0, 0.0, 1.5)
-                .with_rotation(Quat::from_euler(EulerRot::YXZ, PI, PI / 10.0, 0.0)),
+            transform: Transform::from_xyz(0.0, 0.0, 1.5).with_rotation(Quat::from_euler(
+                EulerRot::YXZ,
+                PI,
+                PI / 10.0,
+                0.0,
+            )),
             ..default()
         },
         ScreenCuboid,
@@ -139,10 +139,7 @@ fn setup_computer(
 }
 
 // Just for a bit of fun
-fn rotator_system(
-    time: Res<Time>,
-    mut query: Query<&mut Transform, With<ScreenCuboid>>,
-) {
+fn rotator_system(time: Res<Time>, mut query: Query<&mut Transform, With<ScreenCuboid>>) {
     for mut transform in query.iter_mut() {
         transform.rotation = Quat::from_rotation_y(PI);
         transform.rotate_z(time.elapsed_seconds_wrapped());
@@ -151,9 +148,7 @@ fn rotator_system(
     }
 }
 
-fn draw_screen(
-    mut query: Query<(&mut Text, &Processor), With<Computer>>,
-) {
+fn draw_screen(mut query: Query<(&mut Text, &Computer)>) {
     for (mut text, processor) in query.iter_mut() {
         text.sections[0].value = processor.get_screen().to_string();
     }

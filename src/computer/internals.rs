@@ -1,9 +1,9 @@
 use bevy::prelude::Component;
 
 #[derive(Component)]
-pub struct Processor;
+pub struct Computer;
 
-impl Processor {
+impl Computer {
     pub fn get_screen(&self) -> &str {
         "A quick brown fox jumps over the lazy dog.
 0123456789 ¿?¡!`'\"., <>()[]{} &@%*^#$\\/
