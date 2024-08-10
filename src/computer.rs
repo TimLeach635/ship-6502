@@ -1,7 +1,10 @@
 mod internals;
+mod ibm_byte_map;
 
 use std::f32::consts::PI;
 
+use bevy::input::keyboard::KeyboardInput;
+use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::render::render_resource::Extent3d;
 use bevy::render::render_resource::TextureDescriptor;
@@ -9,14 +12,16 @@ use bevy::render::render_resource::TextureDimension;
 use bevy::render::render_resource::TextureFormat;
 use bevy::render::render_resource::TextureUsages;
 use bevy::render::view::RenderLayers;
+use bevy::sprite::Anchor;
 use bevy::text::Text;
+use bevy::text::Text2dBounds;
 use internals::Computer;
 
 pub struct ComputerPlugin;
 impl Plugin for ComputerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_computer);
-        app.add_systems(Update, (rotator_system, draw_screen));
+        app.add_systems(Update, (rotator_system, draw_screen, capture_keyboard));
     }
 }
 
@@ -78,9 +83,13 @@ fn setup_computer(
 
     // The stuff to render to the screen
     commands.spawn((
-        Computer,
+        Computer::new(80, 25),
         Text2dBundle {
             text: Text::from_section("", text_style.clone()),
+            text_anchor: Anchor::BottomLeft,
+            // I solemnly apologise for using magic numbers here, and I promise I will fix it
+            transform: Transform::from_xyz(-320., -200., 0.),
+            text_2d_bounds: Text2dBounds { size: Vec2::new(640., 400.) },
             ..default()
         },
         first_pass_layer.clone(),
@@ -151,5 +160,18 @@ fn rotator_system(time: Res<Time>, mut query: Query<&mut Transform, With<ScreenC
 fn draw_screen(mut query: Query<(&mut Text, &Computer)>) {
     for (mut text, processor) in query.iter_mut() {
         text.sections[0].value = processor.get_screen().to_string();
+    }
+}
+
+fn capture_keyboard(
+    mut query: Query<&mut Computer>,
+    mut evr_kbd: EventReader<KeyboardInput>,
+) {
+    let mut computer = query.single_mut();
+    for ev in evr_kbd.read() {
+        if ev.state == ButtonState::Released {
+            continue;
+        }
+        computer.handle_keyboard_input(&ev.logical_key);
     }
 }

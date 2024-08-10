@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+array2d = "0.3.2"
 bevy = "0.14.1"
 
 # Optimisations recommended by Bevy: https://bevyengine.org/learn/quick-start/getting-started/setup/#compile-with-performance-optimizations

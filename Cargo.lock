@@ -181,6 +181,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "array2d"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8b39cb2c1bf5a7c0dd097aa95ab859cf87dab5a4328900f5388942dc1889f74"
+
+[[package]]
 name = "arrayref"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3226,6 +3232,7 @@ dependencies = [
 name = "ship_6502"
 version = "0.1.0"
 dependencies = [
+ "array2d",
  "bevy",
 ]
 
