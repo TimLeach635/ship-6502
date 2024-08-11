@@ -4,14 +4,14 @@ use bevy::{input::keyboard::Key, prelude::Component};
 use super::ibm_byte_map::{map_ibm_byte_to_unicode, map_unicode_to_ibm_byte};
 
 #[derive(Component)]
-pub struct Computer {
+pub struct Terminal {
     n_columns: usize,
     n_rows: usize,
     screen_bytes: Array2D<u8>,
     cursor_idx: usize,
 }
 
-impl Computer {
+impl Terminal {
     pub fn new(n_columns: usize, n_rows: usize) -> Self {
         Self {
             n_columns,
@@ -52,7 +52,8 @@ impl Computer {
             // Backspace deletes the last character
             Key::Backspace => {
                 if self.cursor_idx != 0 {
-                    let last = self.screen_bytes
+                    let last = self
+                        .screen_bytes
                         .get_mut(self.n_rows - 1, self.cursor_idx)
                         .expect("Tried to acces out-of-bounds screen byte");
                     *last = 0x00;
@@ -63,13 +64,12 @@ impl Computer {
             Key::Character(input) => {
                 // Ignore control/special characters
                 if !input.chars().any(|c| c.is_control()) {
-                    let curr = self.screen_bytes
+                    let curr = self
+                        .screen_bytes
                         .get_mut(self.n_rows - 1, self.cursor_idx)
                         .expect("Tried to acces out-of-bounds screen byte");
-                    *curr = map_unicode_to_ibm_byte(input
-                        .chars()
-                        .nth(0)
-                        .expect("Error getting char from input")
+                    *curr = map_unicode_to_ibm_byte(
+                        input.chars().nth(0).expect("Error getting char from input"),
                     );
                     if self.cursor_idx < self.n_columns - 1 {
                         self.cursor_idx += 1;
@@ -81,7 +81,8 @@ impl Computer {
             }
             // Spacebar seems to be a special case
             Key::Space => {
-                let curr = self.screen_bytes
+                let curr = self
+                    .screen_bytes
                     .get_mut(self.n_rows - 1, self.cursor_idx)
                     .expect("Tried to acces out-of-bounds screen byte");
                 *curr = 0x20;
@@ -98,13 +99,10 @@ impl Computer {
 
     fn shift_lines_up(&mut self) {
         let rows = self.screen_bytes.as_rows();
-        let mut rows_without_first_line: Vec<Vec<u8>> = rows
-            .into_iter()
-            .skip(1)
-            .collect();
+        let mut rows_without_first_line: Vec<Vec<u8>> = rows.into_iter().skip(1).collect();
         rows_without_first_line.push(vec![0x00; self.n_columns]);
-        self.screen_bytes = Array2D::from_rows(&rows_without_first_line)
-            .expect("Error re-collecting bytes");
+        self.screen_bytes =
+            Array2D::from_rows(&rows_without_first_line).expect("Error re-collecting bytes");
         // Dilemma: should it be this function's job to make the cursor go back to the beginning,
         // or should it be the calling function's job?
         // Oh god, this is the LF vs CRLF thing all over again
