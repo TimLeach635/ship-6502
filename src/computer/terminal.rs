@@ -1,7 +1,7 @@
 use array2d::Array2D;
 use bevy::{input::keyboard::Key, prelude::Component};
 
-use super::ibm_byte_map::{map_ibm_byte_to_unicode, map_unicode_to_ibm_byte};
+use super::{ibm_byte_map::*, os::OS};
 
 #[derive(Component)]
 pub struct Terminal {
@@ -9,6 +9,8 @@ pub struct Terminal {
     n_rows: usize,
     screen_bytes: Array2D<u8>,
     cursor_idx: usize,
+    input_buffer: String,
+    os: OS,
 }
 
 impl Terminal {
@@ -18,6 +20,8 @@ impl Terminal {
             n_rows,
             screen_bytes: Array2D::filled_with(0x00, n_rows, n_columns),
             cursor_idx: 2,
+            input_buffer: String::new(),
+            os: OS,
         }
     }
 
@@ -46,8 +50,34 @@ impl Terminal {
         match key {
             // Enter submits input
             Key::Enter => {
+                let output = self.os.execute(self.input_buffer.clone());
+                self.input_buffer = String::new();
                 self.shift_lines_up();
                 self.cursor_idx = 0;
+
+                for line in output.lines() {
+                    let mut line_chars = line.chars();
+                    'outer: loop {
+                        for idx in 0..self.n_columns {
+                            match line_chars.next() {
+                                Some(next_char) => {
+                                    self.screen_bytes.set(
+                                        self.n_rows - 1,
+                                        idx,
+                                        map_unicode_to_ibm_byte(next_char),
+                                    ).expect("Failed to set byte correctly");
+                                },
+                                None => {
+                                    if idx > 0 {
+                                        self.shift_lines_up();
+                                    }
+                                    break 'outer;
+                                },
+                            }
+                        }
+                        self.shift_lines_up();
+                    }
+                }
             }
             // Backspace deletes the last character
             Key::Backspace => {
@@ -59,6 +89,8 @@ impl Terminal {
                     *last = 0x00;
                     self.cursor_idx -= 1;
                 }
+
+                self.input_buffer.pop();
             }
             // Other keys produce characters
             Key::Character(input) => {
@@ -67,16 +99,19 @@ impl Terminal {
                     let curr = self
                         .screen_bytes
                         .get_mut(self.n_rows - 1, self.cursor_idx)
-                        .expect("Tried to acces out-of-bounds screen byte");
-                    *curr = map_unicode_to_ibm_byte(
-                        input.chars().nth(0).expect("Error getting char from input"),
-                    );
+                        .expect("Tried to access out-of-bounds screen byte");
+
+                    let in_char = input.chars().nth(0).expect("Error getting char from input");
+
+                    *curr = map_unicode_to_ibm_byte(in_char);
                     if self.cursor_idx < self.n_columns - 1 {
                         self.cursor_idx += 1;
                     } else {
                         self.shift_lines_up();
                         self.cursor_idx = 0;
                     }
+
+                    self.input_buffer.push(in_char);
                 }
             }
             // Spacebar seems to be a special case
@@ -92,6 +127,8 @@ impl Terminal {
                     self.shift_lines_up();
                     self.cursor_idx = 0;
                 }
+
+                self.input_buffer.push(' ');
             }
             _ => {}
         }

@@ -1,4 +1,5 @@
 mod ibm_byte_map;
+mod os;
 mod terminal;
 
 use std::f32::consts::PI;
