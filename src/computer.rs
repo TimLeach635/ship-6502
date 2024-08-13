@@ -122,7 +122,7 @@ fn setup_computer(
     ));
 
     // Cube
-    let cube_handle = meshes.add(Cuboid::new(6.4, 4.8, 0.5));
+    let cube_handle = meshes.add(Cuboid::new(0.24, 0.18, 0.03));
     let material_handle = materials.add(StandardMaterial {
         base_color_texture: Some(image_handle),
         reflectance: 0.02,
@@ -133,7 +133,7 @@ fn setup_computer(
         PbrBundle {
             mesh: cube_handle,
             material: material_handle,
-            transform: Transform::from_xyz(0.0, 0.0, 1.5).with_rotation(Quat::from_euler(
+            transform: Transform::from_xyz(0.0, 1.5, -0.5).with_rotation(Quat::from_euler(
                 EulerRot::YXZ,
                 PI,
                 PI / 10.0,
@@ -143,12 +143,6 @@ fn setup_computer(
         },
         ScreenCuboid,
     ));
-
-    // Main pass camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    });
 }
 
 // Just for a bit of fun
