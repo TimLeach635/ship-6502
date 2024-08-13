@@ -1,5 +1,6 @@
 mod ibm_byte_map;
 mod os;
+mod ship_os;
 mod terminal;
 
 use std::f32::consts::PI;
@@ -16,7 +17,7 @@ use bevy::render::view::RenderLayers;
 use bevy::sprite::Anchor;
 use bevy::text::Text;
 use bevy::text::Text2dBounds;
-use terminal::Terminal;
+use ship_os::ShipOS;
 
 pub struct ComputerPlugin;
 impl Plugin for ComputerPlugin {
@@ -84,7 +85,7 @@ fn setup_computer(
 
     // The stuff to render to the screen
     commands.spawn((
-        Terminal::new(80, 25),
+        ShipOS::new(80, 25),
         Text2dBundle {
             text: Text::from_section("", text_style.clone()),
             text_anchor: Anchor::BottomLeft,
@@ -160,13 +161,13 @@ fn rotator_system(time: Res<Time>, mut query: Query<&mut Transform, With<ScreenC
     }
 }
 
-fn draw_screen(mut query: Query<(&mut Text, &Terminal)>) {
+fn draw_screen(mut query: Query<(&mut Text, &ShipOS)>) {
     for (mut text, processor) in query.iter_mut() {
         text.sections[0].value = processor.get_screen().to_string();
     }
 }
 
-fn capture_keyboard(mut query: Query<&mut Terminal>, mut evr_kbd: EventReader<KeyboardInput>) {
+fn capture_keyboard(mut query: Query<&mut ShipOS>, mut evr_kbd: EventReader<KeyboardInput>) {
     let mut computer = query.single_mut();
     for ev in evr_kbd.read() {
         if ev.state == ButtonState::Released {
