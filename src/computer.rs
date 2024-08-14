@@ -23,7 +23,7 @@ pub struct ComputerPlugin;
 impl Plugin for ComputerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_computer);
-        app.add_systems(Update, (rotator_system, draw_screen, capture_keyboard));
+        app.add_systems(Update, (rotator_system, draw_screen));
     }
 }
 
@@ -161,7 +161,8 @@ fn draw_screen(mut query: Query<(&mut Text, &ShipOS)>) {
     }
 }
 
-fn capture_keyboard(mut query: Query<&mut ShipOS>, mut evr_kbd: EventReader<KeyboardInput>) {
+// TODO: Handle keyboard capturing being passed between computers and the player character
+fn _capture_keyboard(mut query: Query<&mut ShipOS>, mut evr_kbd: EventReader<KeyboardInput>) {
     let mut computer = query.single_mut();
     for ev in evr_kbd.read() {
         if ev.state == ButtonState::Released {

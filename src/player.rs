@@ -4,7 +4,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_player);
-        app.add_systems(Update, (camera_mouse_capturing, camera_looking));
+        app.add_systems(Update, (camera_mouse_capturing, camera_looking, player_movement));
     }
 }
 
@@ -12,6 +12,7 @@ impl Plugin for PlayerPlugin {
 pub struct Player {
     horiz_look_sensitivity: f32,
     vert_look_sensitivity: f32,
+    move_speed: f32,
 }
 
 fn setup_player(
@@ -22,6 +23,7 @@ fn setup_player(
         Player {
             horiz_look_sensitivity: 0.7,
             vert_look_sensitivity: 0.7,
+            move_speed: 3.0,
         },
         TransformBundle::default(),
     )).id();
@@ -81,4 +83,38 @@ fn camera_looking(
             }
         }
     }
+}
+
+fn player_movement(
+    time: Res<Time>,
+    key: Res<ButtonInput<KeyCode>>,
+    mut players: Query<(&mut Transform, &Player)>,
+) {
+    let (mut transform, player) = players.single_mut();
+
+    // Add all the axes together, then normalise
+    let mut direction = Vec2::new(0.0, 0.0);
+    if key.pressed(KeyCode::KeyW) {
+        direction.y += 1.0;
+    }
+    if key.pressed(KeyCode::KeyA) {
+        direction.x -= 1.0;
+    }
+    if key.pressed(KeyCode::KeyS) {
+        direction.y -= 1.0;
+    }
+    if key.pressed(KeyCode::KeyD) {
+        direction.x += 1.0;
+    }
+    direction = direction.normalize_or_zero();
+    if direction.length_squared() == 0.0 {
+        return;
+    }
+
+    // Map the input onto the player's local transform
+    // We can use transform.forward, since the camera transform rotates
+    //  independently of the player
+    let mapped_direction = transform.right() * direction.x + transform.forward() * direction.y;
+    
+    transform.translation += mapped_direction * player.move_speed * time.delta_seconds();
 }
