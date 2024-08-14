@@ -52,7 +52,7 @@ fn setup_computer(
     let size = Extent3d {
         width: 640,
         // you may notice that we set the height to 400 here, but later
-        // set the height of the cuboid to 4.8, i.e. 480.
+        // set the height of the cuboid to a 4:3 ratio, i.e. 480.
         // this is because the font we're using, which is an IBM VGA font,
         // was originally stretched slightly in this exact aspect ratio (i.e. it was
         // rendered to a 640x400 pixel grid, but that grid was stretched on the CRT monitor
