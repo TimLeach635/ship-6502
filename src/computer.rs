@@ -23,7 +23,7 @@ pub struct ComputerPlugin;
 impl Plugin for ComputerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_computer);
-        app.add_systems(Update, (rotator_system, draw_screen));
+        app.add_systems(Update, draw_screen);
     }
 }
 
@@ -143,16 +143,6 @@ fn setup_computer(
         },
         ScreenCuboid,
     ));
-}
-
-// Just for a bit of fun
-fn rotator_system(time: Res<Time>, mut query: Query<&mut Transform, With<ScreenCuboid>>) {
-    for mut transform in query.iter_mut() {
-        transform.rotation = Quat::from_rotation_y(PI);
-        transform.rotate_z(time.elapsed_seconds_wrapped());
-        transform.rotate_x(PI / 10.0);
-        transform.rotate_z(-time.elapsed_seconds_wrapped());
-    }
 }
 
 fn draw_screen(mut query: Query<(&mut Text, &ShipOS)>) {

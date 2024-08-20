@@ -1,16 +1,9 @@
 mod computer;
 mod player;
 
-use std::f32::consts::PI;
-use std::time::Duration;
-
 use bevy::prelude::*;
 use computer::ComputerPlugin;
 use player::PlayerPlugin;
-
-fn setup_time(mut time: ResMut<Time>) {
-    time.set_wrap_period(Duration::from_secs_f32(2.0 * PI));
-}
 
 // Add a checkerboard surface for testing visual stuff
 fn add_checkerboard(
@@ -53,6 +46,6 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(PlayerPlugin)
         .add_plugins(ComputerPlugin)
-        .add_systems(Startup, (setup_time, add_checkerboard))
+        .add_systems(Startup, add_checkerboard)
         .run();
 }
