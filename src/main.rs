@@ -1,8 +1,10 @@
 mod computer;
+mod hud;
 mod player;
 
 use bevy::prelude::*;
 use computer::ComputerPlugin;
+use hud::HudPlugin;
 use player::PlayerPlugin;
 
 // Add a checkerboard surface for testing visual stuff
@@ -44,8 +46,9 @@ fn add_checkerboard(
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(PlayerPlugin)
         .add_plugins(ComputerPlugin)
+        .add_plugins(HudPlugin)
+        .add_plugins(PlayerPlugin)
         .add_systems(Startup, add_checkerboard)
         .run();
 }
