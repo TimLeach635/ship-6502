@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 array2d = "0.3.2"
 bevy = "0.14.1"
+bevy_mod_outline = "0.8.2"
+bevy_mod_raycast = "0.18.0"
 
 # Optimisations recommended by Bevy: https://bevyengine.org/learn/quick-start/getting-started/setup/#compile-with-performance-optimizations
 [profile.dev]

@@ -1,10 +1,14 @@
 mod computer;
+mod core;
 mod hud;
+mod interaction;
 mod player;
 
 use bevy::prelude::*;
+use bevy_mod_outline::OutlinePlugin;
 use computer::ComputerPlugin;
 use hud::HudPlugin;
+use interaction::InteractionPlugin;
 use player::PlayerPlugin;
 
 // Add a checkerboard surface for testing visual stuff
@@ -48,6 +52,8 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(ComputerPlugin)
         .add_plugins(HudPlugin)
+        .add_plugins(InteractionPlugin)
+        .add_plugins(OutlinePlugin)
         .add_plugins(PlayerPlugin)
         .add_systems(Startup, add_checkerboard)
         .run();

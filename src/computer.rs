@@ -19,10 +19,13 @@ use bevy::text::Text;
 use bevy::text::Text2dBounds;
 use ship_os::ShipOS;
 
+use crate::core::system_sets::SpawningSet;
+use crate::interaction::Interactable;
+
 pub struct ComputerPlugin;
 impl Plugin for ComputerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_computer);
+        app.add_systems(Startup, setup_computer.in_set(SpawningSet));
         app.add_systems(Update, draw_screen);
     }
 }
@@ -142,6 +145,7 @@ fn setup_computer(
             ..default()
         },
         ScreenCuboid,
+        Interactable,
     ));
 }
 

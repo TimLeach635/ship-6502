@@ -1,9 +1,11 @@
 use bevy::{input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
 
+use crate::{core::system_sets::SpawningSet, interaction::Interactor};
+
 pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_player);
+        app.add_systems(Startup, setup_player.in_set(SpawningSet));
         app.add_systems(Update, (camera_mouse_capturing, camera_looking, player_movement));
     }
 }
@@ -29,10 +31,13 @@ fn setup_player(
     )).id();
 
     // Spawn camera
-    let camera = commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(0.0, 1.5, 0.0).looking_at(Vec3::new(0.0, 1.5, -1.0), Vec3::Y),
-        ..default()
-    }).id();
+    let camera = commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(0.0, 1.5, 0.0).looking_at(Vec3::new(0.0, 1.5, -1.0), Vec3::Y),
+            ..default()
+        },
+        Interactor,
+    )).id();
 
     // Set the camera to be the child of the player
     commands.entity(player).push_children(&[camera]);
@@ -43,7 +48,14 @@ fn camera_mouse_capturing(
     key: Res<ButtonInput<KeyCode>>,
     mut windows: Query<&mut Window>,
 ) {
-    let mut window = windows.single_mut();
+    let mut window = match windows.get_single_mut() {
+        Ok(window) => window,
+        Err(_) => {
+            // either the window has closed, or there are multiple windows.
+            // I'm going to assume it's the former!
+            return;
+        }
+    };
 
     // Capture mouse on click
     if mouse.just_pressed(MouseButton::Left) {
@@ -65,7 +77,15 @@ fn camera_looking(
     mut players: Query<(&mut Transform, &Player, &Children), Without<Camera>>,
     mut cameras: Query<&mut Transform, With<Camera>>,
 ) {
-    let window = windows.single();
+    let window = match windows.get_single() {
+        Ok(window) => window,
+        Err(_) => {
+            // either the window has closed, or there are multiple windows.
+            // I'm going to assume it's the former!
+            return;
+        }
+    };
+
     if window.cursor.grab_mode == CursorGrabMode::Locked {
         let (mut player_transform, player, children) = players.single_mut();
         for &child in children.iter() {
