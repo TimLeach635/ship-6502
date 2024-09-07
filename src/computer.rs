@@ -124,27 +124,14 @@ fn setup_computer(
         first_pass_layer,
     ));
 
-    // Cube
-    let cube_handle = meshes.add(Cuboid::new(0.24, 0.18, 0.03));
-    let material_handle = materials.add(StandardMaterial {
-        base_color_texture: Some(image_handle),
-        reflectance: 0.02,
-        unlit: false,
-        ..default()
-    });
+    // The computer (thanks, denisstephane)
     commands.spawn((
-        PbrBundle {
-            mesh: cube_handle,
-            material: material_handle,
-            transform: Transform::from_xyz(0.0, 1.5, -0.5).with_rotation(Quat::from_euler(
-                EulerRot::YXZ,
-                PI,
-                PI / 10.0,
-                0.0,
-            )),
+        SceneBundle {
+            scene: asset_server.load("models/commodore_pet_2001/scene.gltf#Scene0"),
+            transform: Transform::from_xyz(0.0, 1.45, -0.5).with_scale(Vec3::new(0.05, 0.05, 0.05)),
             ..default()
         },
-        ScreenCuboid,
+        // ScreenCuboid,
         Interactable,
     ));
 }
