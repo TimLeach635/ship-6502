@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::cmp::PartialEq;
 use bevy::prelude::*;
 
 fn main() {
@@ -6,10 +6,7 @@ fn main() {
         .add_systems(Startup, test_startup)
         .add_systems(Update, (
             resolve,
-            (
-                reset_input_ports,
-                reset_output_ports,
-            ).after(resolve),
+            reset_resolutions.after(resolve),
         ))
         .run();
 }
@@ -18,10 +15,14 @@ enum DeviceKind {
     Empty,
 }
 
+#[derive(PartialEq)]
 enum ResolutionState {
     Unresolved,
     Resolved(u32),
 }
+
+#[derive(Component)]
+struct Resolvable(ResolutionState);
 
 #[derive(Component)]
 struct Device {
@@ -29,35 +30,20 @@ struct Device {
 }
 
 #[derive(Component)]
-/// A device that outputs information we want to know.
-/// It will be evaluated first.
-struct OutputDevice;
+#[relationship(relationship_target = InputPorts)]
+struct InputPortOf(Entity);
 
 #[derive(Component)]
-struct InputPort {
-    state: ResolutionState,
-}
+#[relationship_target(relationship = InputPortOf)]
+struct InputPorts(Vec<Entity>);
 
 #[derive(Component)]
-#[relationship(relationship_target = Inputs)]
-struct InputOf(Entity);
+#[relationship(relationship_target = OutputPorts)]
+struct OutputPortOf(Entity);
 
 #[derive(Component)]
-#[relationship_target(relationship = InputOf)]
-struct Inputs(Vec<Entity>);
-
-#[derive(Component)]
-struct OutputPort {
-    state: ResolutionState,
-}
-
-#[derive(Component)]
-#[relationship(relationship_target = Outputs)]
-struct OutputOf(Entity);
-
-#[derive(Component)]
-#[relationship_target(relationship = OutputOf)]
-struct Outputs(Vec<Entity>);
+#[relationship_target(relationship = OutputPortOf)]
+struct OutputPorts(Vec<Entity>);
 
 #[derive(Component)]
 struct Name(String);
@@ -72,35 +58,49 @@ struct OutgoingConnections(Vec<Entity>);
 
 fn test_startup(mut commands: Commands) {
     // Devices
-    let constant_device = commands.spawn((
+    commands.spawn((
         Device {
             kind: DeviceKind::Empty,
         },
-        OutputDevice,
-        Name("Empty".to_string()),
-    )).id();
+        Name("No inputs 1".to_string()),
+    ));
+    commands.spawn((
+        Device {
+            kind: DeviceKind::Empty,
+        },
+        Name("No inputs 2".to_string()),
+    ));
+    commands
+        .spawn((
+            Device {
+                kind: DeviceKind::Empty,
+            },
+            Name("Has inputs 1".to_string()),
+        )).with_related_entities::<InputPortOf>(|spawner| {
+            spawner.spawn(Name("Input port 1.1".to_owned()));
+            spawner.spawn(Name("Input port 1.2".to_owned()));
+        });
+    commands
+        .spawn((
+            Device {
+                kind: DeviceKind::Empty,
+            },
+            Name("Has inputs 2".to_string()),
+        )).with_related::<InputPortOf>(Name("Input port 2.1".to_owned()));
 }
 
 fn resolve(
-    q_devices: Query<(&Device, &Name), With<OutputDevice>>,
+    q_root_devices: Query<(Entity, &Name), (With<Device>, Without<InputPorts>)>,
 ) {
-    for (device, name) in q_devices.iter() {
-        match device.kind {
-            DeviceKind::Empty => {
-                println!("Device \"{}\" resolved", name.0);
-            }
-        }
+    // Start at the devices that don't have any input ports, as it is these devices
+    //  whose behaviour is known right away
+    for (ent, name) in q_root_devices {
+        println!("Identified \"{}\" as a root node", name.0);
     }
 }
 
-fn reset_input_ports(mut ports: Query<&mut InputPort>) {
-    for mut device in ports.iter_mut() {
-        device.state = ResolutionState::Unresolved;
-    }
-}
-
-fn reset_output_ports(mut ports: Query<&mut OutputPort>) {
-    for mut device in ports.iter_mut() {
-        device.state = ResolutionState::Unresolved;
+fn reset_resolutions(q_resolvable: Query<&mut Resolvable>) {
+    for mut resolvable in q_resolvable {
+        resolvable.0 = ResolutionState::Unresolved;
     }
 }
