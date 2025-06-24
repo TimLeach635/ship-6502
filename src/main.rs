@@ -1,7 +1,7 @@
 use std::cmp::PartialEq;
 use std::collections::VecDeque;
 use bevy::ecs::entity::EntityHashMap;
-use bevy::ecs::relationship::{Relationship, RelationshipSourceCollection};
+use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 
 fn main() {
