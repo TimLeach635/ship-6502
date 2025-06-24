@@ -55,7 +55,7 @@ struct OutgoingConnection(Entity);
 #[relationship_target(relationship = OutgoingConnection)]
 struct IncomingConnections(Vec<Entity>);
 
-/// Represents an output port of the entire level. Traversal of the device tree begins at these.
+/// Represents an output port of the entire level.
 #[derive(Component)]
 struct LevelOutput;
 
