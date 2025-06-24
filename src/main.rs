@@ -6,11 +6,6 @@ use bevy::prelude::*;
 
 fn main() {
     App::new()
-        .add_systems(Startup, (
-            test_startup,
-            resolve.after(test_startup),
-            check_all_ports.after(resolve),
-        ))
         .add_systems(Update, reset_resolutions)
         .run();
 }
@@ -67,153 +62,6 @@ struct LevelOutput;
 #[derive(Component)]
 // TODO: Too specific? Should this be ValueHolder?
 struct Port(Option<u32>);
-
-fn test_startup(mut commands: Commands) {
-    // Devices
-    let root = commands.spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
-        Name("Root".to_owned()),
-    )).id();
-    let branch_1 = commands.spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
-        Name("Branch 1".to_owned()),
-    )).id();
-    let branch_2 = commands.spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
-        Name("Branch 2".to_owned()),
-    )).id();
-    let leaf_1 = commands.spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
-        Name("Leaf 1".to_owned()),
-    )).id();
-    let leaf_2 = commands.spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
-        Name("Leaf 2".to_owned()),
-    )).id();
-    let leaf_3 = commands.spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
-        Name("Leaf 3".to_owned()),
-    )).id();
-    
-    // Output ports
-    let root_o1 = commands.spawn((
-        OutputPortOf(root),
-        Port(None),
-        Name("Root.o1".to_owned()),
-    )).id();
-    let root_o2 = commands.spawn((
-        OutputPortOf(root),
-        Port(None),
-        Name("Root.o2".to_owned()),
-    )).id();
-    let branch1_o1 = commands.spawn((
-        OutputPortOf(branch_1),
-        Port(None),
-        Name("Branch 1.o1".to_owned()),
-    )).id();
-    let branch1_o2 = commands.spawn((
-        OutputPortOf(branch_1),
-        Port(None),
-        Name("Branch 1.o2".to_owned()),
-    )).id();
-    let branch2_o1 = commands.spawn((
-        OutputPortOf(branch_2),
-        Port(None),
-        Name("Branch 2.o1".to_owned()),
-    )).id();
-    let branch2_o2 = commands.spawn((
-        OutputPortOf(branch_2),
-        Port(None),
-        Name("Branch 2.o2".to_owned()),
-    )).id();
-    let leaf1_o1 = commands.spawn((
-        OutputPortOf(leaf_1),
-        Port(None),
-        Name("Leaf 1.o1".to_owned()),
-    )).id();
-    let leaf2_o1 = commands.spawn((
-        OutputPortOf(leaf_2),
-        Port(None),
-        Name("Leaf 2.o1".to_owned()),
-    )).id();
-    let leaf3_o1 = commands.spawn((
-        OutputPortOf(leaf_3),
-        Port(None),
-        Name("Leaf 3.o1".to_owned()),
-    )).id();
-    
-    // Level outputs
-    let out_1 = commands.spawn((
-        LevelOutput,
-        Port(None),
-        Name("Level output 1".to_owned()),
-    )).id();
-    let out_2 = commands.spawn((
-        LevelOutput,
-        Port(None),
-        Name("Level output 2".to_owned()),
-    )).id();
-    let out_3 = commands.spawn((
-        LevelOutput,
-        Port(None),
-        Name("Level output 3".to_owned()),
-    )).id();
-    
-    // Input ports
-    let branch1_i1 = commands.spawn((
-        InputPortOf(branch_1),
-        Port(None),
-        Name("Branch 1.i1".to_owned()),
-    )).id();
-    let branch2_i1 = commands.spawn((
-        InputPortOf(branch_2),
-        Port(None),
-        Name("Branch 2.i1".to_owned()),
-    )).id();
-    let leaf1_i1 = commands.spawn((
-        InputPortOf(leaf_1),
-        Port(None),
-        Name("Leaf 1.i1".to_owned()),
-    )).id();
-    let leaf2_i1 = commands.spawn((
-        InputPortOf(leaf_2),
-        Port(None),
-        Name("Leaf 2.i1".to_owned()),
-    )).id();
-    let leaf2_i2 = commands.spawn((
-        InputPortOf(leaf_2),
-        Port(None),
-        Name("Leaf 2.i2".to_owned()),
-    )).id();
-    let leaf3_i1 = commands.spawn((
-        InputPortOf(leaf_3),
-        Port(None),
-        Name("Leaf 3.i1".to_owned()),
-    )).id();
-    
-    // Connections
-    commands.entity(root_o1).insert(OutgoingConnection(branch1_i1));
-    commands.entity(root_o2).insert(OutgoingConnection(branch2_i1));
-    commands.entity(branch1_o1).insert(OutgoingConnection(leaf1_i1));
-    commands.entity(branch1_o2).insert(OutgoingConnection(leaf2_i1));
-    commands.entity(branch2_o1).insert(OutgoingConnection(leaf2_i2));
-    commands.entity(branch2_o2).insert(OutgoingConnection(leaf3_i1));
-    commands.entity(leaf1_o1).insert(OutgoingConnection(out_1));
-    commands.entity(leaf2_o1).insert(OutgoingConnection(out_2));
-    commands.entity(leaf3_o1).insert(OutgoingConnection(out_3));
-}
 
 fn resolve(
     q_device_entities: Query<Entity, With<Device>>,
@@ -283,16 +131,184 @@ fn resolve(
     }
 }
 
-fn check_all_ports(q_ports: Query<&Port>) {
-    if q_ports.iter().any(|port| port.0.is_none()) {
-        println!("Some ports have not been resolved");
-    } else {
-        println!("All ports have been resolved");
-    }
-}
-
 fn reset_resolutions(q_resolvable: Query<&mut Resolvable>) {
     for mut resolvable in q_resolvable {
         resolvable.0 = ResolutionState::Unresolved;
     }
+}
+
+#[test]
+fn can_resolve_port_values_in_a_circuit_without_panicking() {
+    let mut app = App::new();
+
+    // Devices
+    let root = app.world_mut().spawn((
+        Device {
+            kind: DeviceKind::Empty,
+        },
+        Name("Root".to_owned()),
+    )).id();
+    let branch_1 = app.world_mut().spawn((
+        Device {
+            kind: DeviceKind::Empty,
+        },
+        Name("Branch 1".to_owned()),
+    )).id();
+    let branch_2 = app.world_mut().spawn((
+        Device {
+            kind: DeviceKind::Empty,
+        },
+        Name("Branch 2".to_owned()),
+    )).id();
+    let leaf_1 = app.world_mut().spawn((
+        Device {
+            kind: DeviceKind::Empty,
+        },
+        Name("Leaf 1".to_owned()),
+    )).id();
+    let leaf_2 = app.world_mut().spawn((
+        Device {
+            kind: DeviceKind::Empty,
+        },
+        Name("Leaf 2".to_owned()),
+    )).id();
+    let leaf_3 = app.world_mut().spawn((
+        Device {
+            kind: DeviceKind::Empty,
+        },
+        Name("Leaf 3".to_owned()),
+    )).id();
+
+    // Output ports
+    let root_o1 = app.world_mut().spawn((
+        OutputPortOf(root),
+        Port(None),
+        Name("Root.o1".to_owned()),
+    )).id();
+    let root_o2 = app.world_mut().spawn((
+        OutputPortOf(root),
+        Port(None),
+        Name("Root.o2".to_owned()),
+    )).id();
+    let branch1_o1 = app.world_mut().spawn((
+        OutputPortOf(branch_1),
+        Port(None),
+        Name("Branch 1.o1".to_owned()),
+    )).id();
+    let branch1_o2 = app.world_mut().spawn((
+        OutputPortOf(branch_1),
+        Port(None),
+        Name("Branch 1.o2".to_owned()),
+    )).id();
+    let branch2_o1 = app.world_mut().spawn((
+        OutputPortOf(branch_2),
+        Port(None),
+        Name("Branch 2.o1".to_owned()),
+    )).id();
+    let branch2_o2 = app.world_mut().spawn((
+        OutputPortOf(branch_2),
+        Port(None),
+        Name("Branch 2.o2".to_owned()),
+    )).id();
+    let leaf1_o1 = app.world_mut().spawn((
+        OutputPortOf(leaf_1),
+        Port(None),
+        Name("Leaf 1.o1".to_owned()),
+    )).id();
+    let leaf2_o1 = app.world_mut().spawn((
+        OutputPortOf(leaf_2),
+        Port(None),
+        Name("Leaf 2.o1".to_owned()),
+    )).id();
+    let leaf3_o1 = app.world_mut().spawn((
+        OutputPortOf(leaf_3),
+        Port(None),
+        Name("Leaf 3.o1".to_owned()),
+    )).id();
+
+    // Level outputs
+    let out_1 = app.world_mut().spawn((
+        LevelOutput,
+        Port(None),
+        Name("Level output 1".to_owned()),
+    )).id();
+    let out_2 = app.world_mut().spawn((
+        LevelOutput,
+        Port(None),
+        Name("Level output 2".to_owned()),
+    )).id();
+    let out_3 = app.world_mut().spawn((
+        LevelOutput,
+        Port(None),
+        Name("Level output 3".to_owned()),
+    )).id();
+
+    // Input ports
+    let branch1_i1 = app.world_mut().spawn((
+        InputPortOf(branch_1),
+        Port(None),
+        Name("Branch 1.i1".to_owned()),
+    )).id();
+    let branch2_i1 = app.world_mut().spawn((
+        InputPortOf(branch_2),
+        Port(None),
+        Name("Branch 2.i1".to_owned()),
+    )).id();
+    let leaf1_i1 = app.world_mut().spawn((
+        InputPortOf(leaf_1),
+        Port(None),
+        Name("Leaf 1.i1".to_owned()),
+    )).id();
+    let leaf2_i1 = app.world_mut().spawn((
+        InputPortOf(leaf_2),
+        Port(None),
+        Name("Leaf 2.i1".to_owned()),
+    )).id();
+    let leaf2_i2 = app.world_mut().spawn((
+        InputPortOf(leaf_2),
+        Port(None),
+        Name("Leaf 2.i2".to_owned()),
+    )).id();
+    let leaf3_i1 = app.world_mut().spawn((
+        InputPortOf(leaf_3),
+        Port(None),
+        Name("Leaf 3.i1".to_owned()),
+    )).id();
+
+    // Connections
+    app.world_mut().entity_mut(root_o1).insert(OutgoingConnection(branch1_i1));
+    app.world_mut().entity_mut(root_o2).insert(OutgoingConnection(branch2_i1));
+    app.world_mut().entity_mut(branch1_o1).insert(OutgoingConnection(leaf1_i1));
+    app.world_mut().entity_mut(branch1_o2).insert(OutgoingConnection(leaf2_i1));
+    app.world_mut().entity_mut(branch2_o1).insert(OutgoingConnection(leaf2_i2));
+    app.world_mut().entity_mut(branch2_o2).insert(OutgoingConnection(leaf3_i1));
+    app.world_mut().entity_mut(leaf1_o1).insert(OutgoingConnection(out_1));
+    app.world_mut().entity_mut(leaf2_o1).insert(OutgoingConnection(out_2));
+    app.world_mut().entity_mut(leaf3_o1).insert(OutgoingConnection(out_3));
+    
+    // Systems
+    app.add_systems(Update, resolve);
+    
+    // Perform update
+    app.update();
+    
+    // Confirm that all ports now have values
+    assert!(app.world().get::<Port>(root_o1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(root_o2).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(branch1_o1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(branch1_o2).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(branch2_o1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(branch2_o2).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(leaf1_o1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(leaf2_o1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(leaf3_o1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(out_1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(out_2).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(out_3).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(branch1_i1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(branch2_i1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(leaf1_i1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(leaf2_i1).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(leaf2_i2).unwrap().0.is_some());
+    assert!(app.world().get::<Port>(leaf3_i1).unwrap().0.is_some());
 }
