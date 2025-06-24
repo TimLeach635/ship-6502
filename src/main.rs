@@ -1,5 +1,6 @@
 use std::cmp::PartialEq;
 use std::collections::VecDeque;
+use bevy::ecs::entity::EntityHashMap;
 use bevy::ecs::relationship::{Relationship, RelationshipSourceCollection};
 use bevy::prelude::*;
 
@@ -222,6 +223,9 @@ fn resolve(
 ) {
     let mut device_queue: VecDeque<Entity> = VecDeque::new();
     device_queue.extend(q_device_entities);
+    let mut visit_counts: EntityHashMap<usize> = EntityHashMap::new();
+    visit_counts.extend(q_device_entities.iter().map(|ent| (ent, 0)));  // counts start at 0
+    let max_count = device_queue.len();
 
     while let Some(device) = device_queue.pop_front() {
         let (inputs_opt, outputs_opt) = q_devices.get(device)
@@ -238,8 +242,23 @@ fn resolve(
                 if input_port.0.is_none() {
                     // At least one of the input ports of this device has no value,
                     // so (for now!) we assume we cannot resolve.
-                    device_queue.push_back(device);
-                    continue;
+                    // If we've already pushed this device to the queue a certain
+                    // number of times, then we're almost certainly in a cycle.
+                    // TODO: This is actually a really inefficient way of traversing the
+                    //  device tree - replace this with something less naive.
+                    let visit_count = visit_counts
+                        .get(&device)
+                        .map(|n| *n)
+                        .unwrap_or_default();
+                    if visit_count < max_count {
+                        visit_counts.insert(device, visit_count + 1);
+                        device_queue.push_back(device);
+                        continue;
+                    } else {
+                        // TODO: Handle gracefully. In the game this definitely should not panic
+                        //  and instead will just be handled. This is not a crash situation!
+                        panic!("Encountered a cycle");
+                    }
                 }
             }
         }
