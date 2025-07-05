@@ -1,20 +1,70 @@
-use bevy::{prelude::*, color::palettes::basic::*};
+use std::collections::HashMap;
+use std::convert::Into;
+use bevy::prelude::*;
 use bevy::input::mouse::MouseButtonInput;
 
-// Colours
-const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+#[derive(Copy, Clone, Eq, Hash, PartialEq)]
+enum ItemKind {
+    Circle,
+    Square,
+}
 
-pub struct ItemPlacementPlugin;
+#[derive(Component)]
+struct HasItemKind(ItemKind);
 
-struct PlaceableItemBundle {
-    mesh: Handle<Mesh>,
-    material: Handle<ColorMaterial>,
+struct ButtonStateColours {
+    background: Color,
+    border: Color,
+}
+
+struct ButtonColours {
+    unselected: ButtonStateColours,
+    selected: ButtonStateColours,
+    hovered_unselected: ButtonStateColours,
+    hovered_selected: ButtonStateColours,
+    pressed: ButtonStateColours,
+}
+
+impl ButtonColours {
+    fn from_hue(hue: f32) -> Self {
+        ButtonColours {
+            unselected: ButtonStateColours {
+                background: Color::hsl(hue, 0.0, 0.15),
+                border: Color::BLACK,
+            },
+            selected: ButtonStateColours {
+                background: Color::hsl(hue, 0.8, 0.20),
+                border: Color::BLACK,
+            },
+            hovered_unselected: ButtonStateColours {
+                background: Color::hsl(hue, 0.0, 0.25),
+                border: Color::WHITE,
+            },
+            hovered_selected: ButtonStateColours {
+                background: Color::hsl(hue, 0.8, 0.25),
+                border: Color::WHITE,
+            },
+            pressed: ButtonStateColours {
+                background: Color::hsl(hue, 0.8, 0.40),
+                border: Color::hsl(hue, 1.0, 1.0),
+            },
+        }
+    }
+}
+
+struct ItemSpecification {
+    kind: ItemKind,
+    name: String,
+    mesh: Mesh,
+    material: ColorMaterial,
+    button_colours: ButtonColours,
 }
 
 #[derive(Resource)]
-struct CurrentlyPlacing(PlaceableItemBundle);
+struct CurrentlyPlacing(ItemKind);
+
+#[derive(Resource)]
+struct PlaceableItems(HashMap<ItemKind, ItemSpecification>);
 
 #[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
 enum ItemPlacementState {
@@ -23,11 +73,16 @@ enum ItemPlacementState {
     Placing,
 }
 
+pub struct ItemPlacementPlugin;
+
 impl Plugin for ItemPlacementPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<ItemPlacementState>();
         app.add_systems(Startup, setup);
-        app.add_systems(Update, (placement_system, button_system));
+        app.add_systems(Update, (
+            placement_system.run_if(in_state(ItemPlacementState::Placing)),
+            button_system
+        ));
     }
 }
 
@@ -35,8 +90,11 @@ fn placement_system(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     currently_placing: Res<CurrentlyPlacing>,
+    placeable_items: Res<PlaceableItems>,
     q_window: Query<&Window>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Assume exactly one camera
     // TODO: Don't assume that
@@ -55,11 +113,13 @@ fn placement_system(
         
         let world_position = camera.viewport_to_world_2d(camera_transform, cursor_position)
             .expect("Should not experience a viewport conversion error here");
+
+        // Get the mesh and material from the item map
+        let item_specification = &placeable_items.0[&currently_placing.0];
         
         commands.spawn((
-            // These are handles, so we can clone them at negligible cost
-            Mesh2d(currently_placing.0.mesh.clone()),
-            MeshMaterial2d(currently_placing.0.material.clone()),
+            Mesh2d(meshes.add(item_specification.mesh.clone())),
+            MeshMaterial2d(materials.add(item_specification.material.clone())),
             Transform::from_xyz(world_position.x, world_position.y, 0.),
         ));
     }
@@ -71,23 +131,64 @@ fn button_system(
             &Interaction,
             &mut BackgroundColor,
             &mut BorderColor,
+            &HasItemKind,
         ),
         (Changed<Interaction>, With<Button>),
     >,
+    mut currently_placing: ResMut<CurrentlyPlacing>,
+    placeable_items: Res<PlaceableItems>,
+    item_placement_state: Res<State<ItemPlacementState>>,
+    mut next_item_placement_state: ResMut<NextState<ItemPlacementState>>,
 ) {
-    for (interaction, mut color, mut border_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = PRESSED_BUTTON.into();
-                border_color.0 = RED.into();
+    for (
+        interaction,
+        mut color,
+        mut border_color,
+        HasItemKind(item_kind),
+    ) in &mut interaction_query {
+        let item_specification = &placeable_items.0[item_kind];
+
+        if item_placement_state.get() == &ItemPlacementState::Placing
+            && currently_placing.0 == *item_kind {
+            match *interaction {
+                Interaction::Pressed => {
+                    color.0 = item_specification.button_colours.pressed.background;
+                    border_color.0 = item_specification.button_colours.pressed.border;
+
+                    next_item_placement_state.set(ItemPlacementState::NotPlacing);
+                }
+                Interaction::Hovered => {
+                    color.0 = item_specification.button_colours.hovered_selected.background;
+                    border_color.0 = item_specification.button_colours.hovered_selected.border;
+                }
+                Interaction::None => {
+                    color.0 = item_specification.button_colours.selected.background;
+                    border_color.0 = item_specification.button_colours.selected.border;
+                }
             }
-            Interaction::Hovered => {
-                *color = HOVERED_BUTTON.into();
-                border_color.0 = Color::WHITE;
-            }
-            Interaction::None => {
-                *color = NORMAL_BUTTON.into();
-                border_color.0 = Color::BLACK;
+        } else {
+            match *interaction {
+                Interaction::Pressed => {
+                    color.0 = item_specification.button_colours.pressed.background;
+                    border_color.0 = item_specification.button_colours.pressed.border;
+
+                    // TODO: I don't like that doing the state change logic here means that
+                    //  it happens as soon as you press the button. I'd rather that it changes
+                    //  when you let go, but the logic is more complicated there.
+                    //  See if these buttons fire off events or something that you can listen to
+                    //  - it's possible that this logic should only be used for the cosmetic
+                    //  changes.
+                    currently_placing.0 = *item_kind;
+                    next_item_placement_state.set(ItemPlacementState::Placing);
+                }
+                Interaction::Hovered => {
+                    color.0 = item_specification.button_colours.hovered_unselected.background;
+                    border_color.0 = item_specification.button_colours.hovered_unselected.border;
+                }
+                Interaction::None => {
+                    color.0 = item_specification.button_colours.unselected.background;
+                    border_color.0 = item_specification.button_colours.unselected.border;
+                }
             }
         }
     }
@@ -95,10 +196,30 @@ fn button_system(
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn((
+    // Generate list (and hashmap) of placeable items
+    let items: Vec<ItemSpecification> = vec![
+        ItemSpecification {
+            kind: ItemKind::Circle,
+            name: "Circle".to_owned(),
+            mesh: Circle::new(50.0).into(),
+            material: Color::hsl(0.0, 0.95, 0.7).into(),
+            button_colours: ButtonColours::from_hue(0.0),
+        },
+        ItemSpecification {
+            kind: ItemKind::Square,
+            name: "Square".to_owned(),
+            mesh: Rectangle::new(100.0, 100.0).into(),
+            material: Color::hsl(240.0, 0.95, 0.7).into(),
+            button_colours: ButtonColours::from_hue(240.0),
+        },
+    ];
+    // Ensure the resource is initialised
+    commands.insert_resource(CurrentlyPlacing(items[0].kind));
+
+    let mut item_map: HashMap<ItemKind, ItemSpecification> = HashMap::new();
+
+    let button_parent = commands.spawn((
         Node {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
@@ -106,8 +227,13 @@ fn setup(
             justify_content: JustifyContent::Center,
             ..default()
         },
-        children![(
+    )).id();
+
+    for item in items {
+        // Add button
+        let button = commands.spawn((
             Button,
+            HasItemKind(item.kind),
             Node {
                 width: Val::Px(150.0),
                 height: Val::Px(65.0),
@@ -116,37 +242,21 @@ fn setup(
                 align_items: AlignItems::Center,
                 ..default()
             },
-            BorderColor(Color::BLACK),
+            BorderColor(item.button_colours.unselected.border),
             BorderRadius::MAX,
-            BackgroundColor(NORMAL_BUTTON),
+            BackgroundColor(item.button_colours.unselected.background),
             children![(
-                Text::new("Circle"),
+                Text::new(item.name.clone()),
                 TextColor(Color::WHITE),
                 TextShadow::default(),
             )]
-        ), (
-            Button,
-            Node {
-                width: Val::Px(150.0),
-                height: Val::Px(65.0),
-                border: UiRect::all(Val::Px(5.0)),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            BorderColor(Color::BLACK),
-            BorderRadius::MAX,
-            BackgroundColor(NORMAL_BUTTON),
-            children![(
-                Text::new("Square"),
-                TextColor(Color::WHITE),
-                TextShadow::default(),
-            )]
-        )]
-    ));
-    
-    commands.insert_resource(CurrentlyPlacing(PlaceableItemBundle {
-        mesh: meshes.add(Circle::new(50.0)),
-        material: materials.add(Color::hsl(1.0, 0.95, 0.7)),
-    }));
+        )).id();
+        commands.entity(button_parent).add_child(button);
+
+        // Add to map
+        if item_map.insert(item.kind, item).is_some() {
+            warn!("Duplicate ItemKind found in list of items");
+        }
+    }
+    commands.insert_resource(PlaceableItems(item_map));
 }
