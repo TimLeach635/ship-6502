@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::Into;
+use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::input::mouse::MouseButtonInput;
 
@@ -103,6 +104,9 @@ fn placement_system(
         .expect("Should be only one camera object");
     
     for event in mouse_button_input_events.read() {
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
         // Figure out where the mouse click was
         let window = q_window
             .get(event.window)
