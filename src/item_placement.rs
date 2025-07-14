@@ -2,11 +2,13 @@ use std::collections::HashMap;
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::input::mouse::MouseButtonInput;
+use crate::simulation::{Device, DeviceKind, OutputPortOf, Port};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 enum ItemKind {
     Circle,
     Square,
+    EmptyDevice,
 }
 
 #[derive(Component)]
@@ -123,10 +125,29 @@ fn placement_system(
                 Mesh2d(meshes.add(Rectangle::new(100.0, 100.0))),
                 MeshMaterial2d(materials.add(Color::hsl(240.0, 0.95, 0.7))),
             )).id(),
+            ItemKind::EmptyDevice => {
+                let device = commands.spawn((
+                    Device { kind: DeviceKind::Empty },
+                    Mesh2d(meshes.add(Rectangle::new(80.0, 100.0))),
+                    MeshMaterial2d(materials.add(Color::hsl(160.0, 0.95, 0.7))),
+                )).id();
+
+                let output_port = commands.spawn((
+                    Port(None),
+                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                    MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
+                    Transform::from_xyz(40.0, 30.0, 0.0),
+                )).id();
+
+                commands.entity(device).add_child(output_port);
+                commands.entity(output_port).add_one_related::<OutputPortOf>(device);
+
+                device
+            },
         };
 
         commands.entity(item).insert(
-            Transform::from_xyz(world_position.x, world_position.y, 0.)
+            Transform::from_xyz(world_position.x, world_position.y, 0.0)
         );
     }
 }
@@ -215,6 +236,11 @@ fn setup(
             name: "Square".to_owned(),
             button_colours: ButtonColours::from_hue(240.0),
         },
+        ItemSpecification {
+            kind: ItemKind::EmptyDevice,
+            name: "Empty device".to_owned(),
+            button_colours: ButtonColours::from_hue(160.0),
+        },
     ];
     // Ensure the resource is initialised
     commands.insert_resource(CurrentlyPlacing(items[0].kind));
@@ -237,7 +263,6 @@ fn setup(
             Button,
             HasItemKind(item.kind),
             Node {
-                width: Val::Px(150.0),
                 height: Val::Px(65.0),
                 border: UiRect::all(Val::Px(5.0)),
                 justify_content: JustifyContent::Center,

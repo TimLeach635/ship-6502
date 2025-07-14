@@ -18,7 +18,7 @@ impl Plugin for SimulationPlugin {
 #[derive(Event)]
 pub struct StepSimulation;
 
-enum DeviceKind {
+pub enum DeviceKind {
     Empty,
 }
 
@@ -32,36 +32,36 @@ enum ResolutionState {
 struct Resolvable(ResolutionState);
 
 #[derive(Component)]
-struct Device {
-    kind: DeviceKind,
+pub struct Device {
+    pub kind: DeviceKind,
 }
 
 #[derive(Component)]
 #[relationship(relationship_target = InputPorts)]
-struct InputPortOf(Entity);
+pub struct InputPortOf(Entity);
 
 #[derive(Component)]
 #[relationship_target(relationship = InputPortOf)]
-struct InputPorts(Vec<Entity>);
+pub struct InputPorts(Vec<Entity>);
 
 #[derive(Component)]
 #[relationship(relationship_target = OutputPorts)]
-struct OutputPortOf(Entity);
+pub struct OutputPortOf(Entity);
 
 #[derive(Component)]
 #[relationship_target(relationship = OutputPortOf)]
-struct OutputPorts(Vec<Entity>);
+pub struct OutputPorts(Vec<Entity>);
 
 #[derive(Component)]
 struct Name(String);
 
 #[derive(Component)]
 #[relationship(relationship_target = IncomingConnections)]
-struct OutgoingConnection(Entity);
+pub struct OutgoingConnection(Entity);
 
 #[derive(Component)]
 #[relationship_target(relationship = OutgoingConnection)]
-struct IncomingConnections(Vec<Entity>);
+pub struct IncomingConnections(Vec<Entity>);
 
 /// Represents an output port of the entire level.
 #[derive(Component)]
@@ -69,7 +69,7 @@ struct LevelOutput;
 
 #[derive(Component)]
 // TODO: Too specific? Should this be ValueHolder?
-struct Port(Option<u32>);
+pub struct Port(pub Option<u32>);
 
 fn resolve(
     q_device_entities: Query<Entity, With<Device>>,
