@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::Into;
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::input::mouse::MouseButtonInput;
@@ -56,8 +55,6 @@ impl ButtonColours {
 struct ItemSpecification {
     kind: ItemKind,
     name: String,
-    mesh: Mesh,
-    material: ColorMaterial,
     button_colours: ButtonColours,
 }
 
@@ -91,7 +88,6 @@ fn placement_system(
     mut commands: Commands,
     mut mouse_button_input_events: EventReader<MouseButtonInput>,
     currently_placing: Res<CurrentlyPlacing>,
-    placeable_items: Res<PlaceableItems>,
     q_window: Query<&Window>,
     q_camera: Query<(&Camera, &GlobalTransform)>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -118,14 +114,20 @@ fn placement_system(
         let world_position = camera.viewport_to_world_2d(camera_transform, cursor_position)
             .expect("Should not experience a viewport conversion error here");
 
-        // Get the mesh and material from the item map
-        let item_specification = &placeable_items.0[&currently_placing.0];
-        
-        commands.spawn((
-            Mesh2d(meshes.add(item_specification.mesh.clone())),
-            MeshMaterial2d(materials.add(item_specification.material.clone())),
-            Transform::from_xyz(world_position.x, world_position.y, 0.),
-        ));
+        let item = match currently_placing.0 {
+            ItemKind::Circle => commands.spawn((
+                Mesh2d(meshes.add(Circle::new(50.0))),
+                MeshMaterial2d(materials.add(Color::hsl(0.0, 0.95, 0.7))),
+            )).id(),
+            ItemKind::Square => commands.spawn((
+                Mesh2d(meshes.add(Rectangle::new(100.0, 100.0))),
+                MeshMaterial2d(materials.add(Color::hsl(240.0, 0.95, 0.7))),
+            )).id(),
+        };
+
+        commands.entity(item).insert(
+            Transform::from_xyz(world_position.x, world_position.y, 0.)
+        );
     }
 }
 
@@ -206,15 +208,11 @@ fn setup(
         ItemSpecification {
             kind: ItemKind::Circle,
             name: "Circle".to_owned(),
-            mesh: Circle::new(50.0).into(),
-            material: Color::hsl(0.0, 0.95, 0.7).into(),
             button_colours: ButtonColours::from_hue(0.0),
         },
         ItemSpecification {
             kind: ItemKind::Square,
             name: "Square".to_owned(),
-            mesh: Rectangle::new(100.0, 100.0).into(),
-            material: Color::hsl(240.0, 0.95, 0.7).into(),
             button_colours: ButtonColours::from_hue(240.0),
         },
     ];
