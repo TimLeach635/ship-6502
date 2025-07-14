@@ -6,7 +6,7 @@ use crate::item_placement::ItemPlacementPlugin;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, ItemPlacementPlugin))
+        .add_plugins((DefaultPlugins, MeshPickingPlugin, ItemPlacementPlugin))
         .add_systems(Startup, setup)
         .run();
 }

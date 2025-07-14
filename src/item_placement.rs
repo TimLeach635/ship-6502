@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use bevy::input::ButtonState;
 use bevy::prelude::*;
 use bevy::input::mouse::MouseButtonInput;
-use crate::simulation::{Device, DeviceKind, OutputPortOf, Port};
+use crate::simulation::{Device, DeviceKind, OutgoingConnection, OutputPortOf, Port};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 enum ItemKind {
@@ -69,9 +69,13 @@ struct PlaceableItems(HashMap<ItemKind, ItemSpecification>);
 #[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
 enum ItemPlacementState {
     #[default]
-    NotPlacing,
+    NotPlacing,  // TODO: Rename this option?
     Placing,
+    Connecting,
 }
+
+#[derive(Resource)]
+struct ConnectionOrigin(Option<Entity>);
 
 pub struct ItemPlacementPlugin;
 
@@ -81,8 +85,10 @@ impl Plugin for ItemPlacementPlugin {
         app.add_systems(Startup, setup);
         app.add_systems(Update, (
             placement_system.run_if(in_state(ItemPlacementState::Placing)),
-            button_system
+            button_system,
         ));
+        app.add_systems(PostUpdate, display_port_connections
+            .after(TransformSystem::TransformPropagate));  // Uses GlobalTransforms
     }
 }
 
@@ -137,25 +143,25 @@ fn placement_system(
                     Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
                     MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
                     Transform::from_xyz(40.0, 30.0, 0.0),
-                )).id();
+                )).observe(on_click_connect).id();
                 let output_port_2 = commands.spawn((
                     Port(None),
                     Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
                     MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
                     Transform::from_xyz(40.0, -30.0, 0.0),
-                )).id();
+                )).observe(on_click_connect).id();
                 let input_port_1 = commands.spawn((
                     Port(None),
                     Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
                     MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
                     Transform::from_xyz(-40.0, 30.0, 0.0),
-                )).id();
+                )).observe(on_click_connect).id();
                 let input_port_2 = commands.spawn((
                     Port(None),
                     Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
                     MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
                     Transform::from_xyz(-40.0, -30.0, 0.0),
-                )).id();
+                )).observe(on_click_connect).id();
 
                 commands.entity(device).add_children(&vec![
                     output_port_1,
@@ -178,6 +184,52 @@ fn placement_system(
     }
 }
 
+fn on_click_connect(
+    click: Trigger<Pointer<Click>>,
+    mut commands: Commands,
+    placement_state: Res<State<ItemPlacementState>>,
+    mut next_placement_state: ResMut<NextState<ItemPlacementState>>,
+    mut connection_origin: ResMut<ConnectionOrigin>,
+) {
+    println!("Running `on_click_connect` system");
+    // TODO: Enforce that the connection endpoints must be the correct types of port
+    match placement_state.get() {
+        ItemPlacementState::NotPlacing => {
+            connection_origin.0 = Some(click.target);
+            next_placement_state.set(ItemPlacementState::Connecting);
+        }
+        ItemPlacementState::Connecting => {
+            // Create connection
+            // TODO: Check which end is which!
+            //  Currently this assumes that you click the output port first, then the input port
+            commands
+                .entity(connection_origin.0
+                    .expect("Connection origin should be `Some` if in the `Connecting` state"))
+                .add_one_related::<OutgoingConnection>(click.target);
+
+            connection_origin.0 = None;
+            next_placement_state.set(ItemPlacementState::NotPlacing);
+        }
+        _ => {/* Don't do anything */}
+    }
+}
+
+fn display_port_connections(
+    mut gizmos: Gizmos,
+    q_outgoings: Query<(Entity, &OutgoingConnection)>,
+    q_global_transforms: Query<&GlobalTransform>,
+) {
+    for (source_ent, OutgoingConnection(dest_ent)) in q_outgoings.iter() {
+        let source = q_global_transforms.get(source_ent).unwrap();
+        let destination = q_global_transforms.get(*dest_ent).unwrap();
+        gizmos.arrow_2d(
+            source.translation().truncate(),
+            destination.translation().truncate(),
+            Color::WHITE,
+        );
+    }
+}
+
 fn button_system(
     mut interaction_query: Query<
         (
@@ -190,8 +242,8 @@ fn button_system(
     >,
     mut currently_placing: ResMut<CurrentlyPlacing>,
     placeable_items: Res<PlaceableItems>,
-    item_placement_state: Res<State<ItemPlacementState>>,
-    mut next_item_placement_state: ResMut<NextState<ItemPlacementState>>,
+    placement_state: Res<State<ItemPlacementState>>,
+    mut next_placement_state: ResMut<NextState<ItemPlacementState>>,
 ) {
     for (
         interaction,
@@ -201,14 +253,14 @@ fn button_system(
     ) in &mut interaction_query {
         let item_specification = &placeable_items.0[item_kind];
 
-        if item_placement_state.get() == &ItemPlacementState::Placing
+        if placement_state.get() == &ItemPlacementState::Placing
             && currently_placing.0 == *item_kind {
             match *interaction {
                 Interaction::Pressed => {
                     color.0 = item_specification.button_colours.pressed.background;
                     border_color.0 = item_specification.button_colours.pressed.border;
 
-                    next_item_placement_state.set(ItemPlacementState::NotPlacing);
+                    next_placement_state.set(ItemPlacementState::NotPlacing);
                 }
                 Interaction::Hovered => {
                     color.0 = item_specification.button_colours.hovered_selected.background;
@@ -232,7 +284,7 @@ fn button_system(
                     //  - it's possible that this logic should only be used for the cosmetic
                     //  changes.
                     currently_placing.0 = *item_kind;
-                    next_item_placement_state.set(ItemPlacementState::Placing);
+                    next_placement_state.set(ItemPlacementState::Placing);
                 }
                 Interaction::Hovered => {
                     color.0 = item_specification.button_colours.hovered_unselected.background;
@@ -268,15 +320,16 @@ fn setup(
             button_colours: ButtonColours::from_hue(160.0),
         },
     ];
-    // Ensure the resource is initialised
+    // Ensure the resources are initialised
     commands.insert_resource(CurrentlyPlacing(items[0].kind));
+    commands.insert_resource(ConnectionOrigin(None));
 
     let mut item_map: HashMap<ItemKind, ItemSpecification> = HashMap::new();
 
     let button_parent = commands.spawn((
         Node {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(20.0),
             align_items: AlignItems::End,
             justify_content: JustifyContent::Center,
             ..default()

@@ -57,7 +57,7 @@ struct Name(String);
 
 #[derive(Component)]
 #[relationship(relationship_target = IncomingConnections)]
-pub struct OutgoingConnection(Entity);
+pub struct OutgoingConnection(pub Entity);
 
 #[derive(Component)]
 #[relationship_target(relationship = OutgoingConnection)]
