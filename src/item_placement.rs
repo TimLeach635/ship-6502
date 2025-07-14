@@ -132,15 +132,41 @@ fn placement_system(
                     MeshMaterial2d(materials.add(Color::hsl(160.0, 0.95, 0.7))),
                 )).id();
 
-                let output_port = commands.spawn((
+                let output_port_1 = commands.spawn((
                     Port(None),
                     Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
                     MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
                     Transform::from_xyz(40.0, 30.0, 0.0),
                 )).id();
+                let output_port_2 = commands.spawn((
+                    Port(None),
+                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                    MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
+                    Transform::from_xyz(40.0, -30.0, 0.0),
+                )).id();
+                let input_port_1 = commands.spawn((
+                    Port(None),
+                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                    MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
+                    Transform::from_xyz(-40.0, 30.0, 0.0),
+                )).id();
+                let input_port_2 = commands.spawn((
+                    Port(None),
+                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                    MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
+                    Transform::from_xyz(-40.0, -30.0, 0.0),
+                )).id();
 
-                commands.entity(device).add_child(output_port);
-                commands.entity(output_port).add_one_related::<OutputPortOf>(device);
+                commands.entity(device).add_children(&vec![
+                    output_port_1,
+                    output_port_2,
+                    input_port_1,
+                    input_port_2,
+                ]);
+                commands.entity(output_port_1).add_one_related::<OutputPortOf>(device);
+                commands.entity(output_port_2).add_one_related::<OutputPortOf>(device);
+                commands.entity(input_port_1).add_one_related::<OutputPortOf>(device);
+                commands.entity(input_port_2).add_one_related::<OutputPortOf>(device);
 
                 device
             },
