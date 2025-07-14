@@ -55,6 +55,9 @@ pub struct OutputPorts(Vec<Entity>);
 #[derive(Component)]
 struct Name(String);
 
+// TODO: Pretty certain that these relationships are the wrong way round!
+//  "OutgoingConnection" on an Entity should mean that this Entity IS an
+//  outgoing connection, not that it HAS one!
 #[derive(Component)]
 #[relationship(relationship_target = IncomingConnections)]
 pub struct OutgoingConnection(pub Entity);
