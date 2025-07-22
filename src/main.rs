@@ -1,8 +1,7 @@
-mod simulation;
-mod item_placement;
+mod puzzles;
 
 use bevy::prelude::*;
-use crate::item_placement::ItemPlacementPlugin;
+use crate::puzzles::item_placement::ItemPlacementPlugin;
 
 fn main() {
     App::new()

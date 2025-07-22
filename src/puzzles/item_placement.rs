@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use bevy::prelude::*;
-use crate::simulation::{Device, DeviceKind, OutgoingConnection, OutputPortOf, Port};
+use crate::puzzles::simulation::{Device, DeviceKind, OutgoingConnection, OutputPortOf, Port};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 enum ItemKind {
