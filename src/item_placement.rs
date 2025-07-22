@@ -92,6 +92,12 @@ impl Plugin for ItemPlacementPlugin {
         ));
         app.add_systems(PostUpdate, display_port_connections
             .after(TransformSystem::TransformPropagate));  // Uses GlobalTransforms
+
+        #[cfg(debug_assertions)]
+        {
+            app.add_systems(Startup, debug_setup);
+            app.add_systems(Update, debug_indicators);
+        }
     }
 }
 
@@ -448,4 +454,55 @@ fn update_button_colour(
             }
         }
     }
+}
+
+// For debugging
+#[cfg(debug_assertions)]
+#[derive(Component)]
+struct Indicator;
+
+#[cfg(debug_assertions)]
+fn debug_setup(mut commands: Commands) {
+    commands.spawn((
+        Text::new(""),
+        Indicator,
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            left: Val::Px(12.0),
+            ..default()
+        },
+    ));
+    commands.add_observer(debug_all_clicks);
+}
+
+#[cfg(debug_assertions)]
+fn debug_indicators(
+    mut query: Query<&mut Text, With<Indicator>>,
+    state: Res<State<ItemPlacementState>>,
+    placing: Res<CurrentlyPlacing>,
+) {
+    for mut text in query.iter_mut() {
+        text.0 = format!(
+            "{}\n{}",
+            match state.get() {
+                ItemPlacementState::NotPlacing => "Not placing",
+                ItemPlacementState::Placing => "Placing",
+                ItemPlacementState::Connecting => "Connecting",
+            },
+            match placing.0 {
+                ItemKind::Circle => "Placing: Circle",
+                ItemKind::Square => "Placing: Square",
+                ItemKind::EmptyDevice => "Placing: Empty device",
+            },
+        );
+    }
+}
+
+#[cfg(debug_assertions)]
+fn debug_all_clicks(
+    click: Trigger<Pointer<Click>>,
+) {
+    info!("Target: {:?}", click.target);
+    info!("Target(): {:?}", click.target());
 }
