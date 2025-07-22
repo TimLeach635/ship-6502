@@ -1,7 +1,5 @@
 use std::collections::HashMap;
-use bevy::input::ButtonState;
 use bevy::prelude::*;
-use bevy::input::mouse::MouseButtonInput;
 use crate::simulation::{Device, DeviceKind, OutgoingConnection, OutputPortOf, Port};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
@@ -77,110 +75,23 @@ enum ItemPlacementState {
 #[derive(Resource)]
 struct ConnectionOrigin(Option<Entity>);
 
+#[derive(Component)]
+struct ItemPlacementField;
+
 pub struct ItemPlacementPlugin;
 
 impl Plugin for ItemPlacementPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<ItemPlacementState>();
         app.add_systems(Startup, setup);
+        app.add_event::<SelectItem>();
+        app.add_event::<DeselectItem>();
         app.add_systems(Update, (
-            placement_system.run_if(in_state(ItemPlacementState::Placing)),
-            button_system,
+            button_visuals_system,
+            update_button_colour,
         ));
         app.add_systems(PostUpdate, display_port_connections
             .after(TransformSystem::TransformPropagate));  // Uses GlobalTransforms
-    }
-}
-
-fn placement_system(
-    mut commands: Commands,
-    mut mouse_button_input_events: EventReader<MouseButtonInput>,
-    currently_placing: Res<CurrentlyPlacing>,
-    q_window: Query<&Window>,
-    q_camera: Query<(&Camera, &GlobalTransform)>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-) {
-    // Assume exactly one camera
-    // TODO: Don't assume that
-    let (camera, camera_transform) = q_camera
-        .single()
-        .expect("Should be only one camera object");
-    
-    for event in mouse_button_input_events.read() {
-        if event.state != ButtonState::Pressed {
-            continue;
-        }
-        // Figure out where the mouse click was
-        let window = q_window
-            .get(event.window)
-            .expect("This entity should always be a window, and therefore always be in this query");
-        
-        let cursor_position = window.cursor_position()
-            .expect("The cursor should be within the bounds of the window this event fired on");
-        
-        let world_position = camera.viewport_to_world_2d(camera_transform, cursor_position)
-            .expect("Should not experience a viewport conversion error here");
-
-        let item = match currently_placing.0 {
-            ItemKind::Circle => commands.spawn((
-                Mesh2d(meshes.add(Circle::new(50.0))),
-                MeshMaterial2d(materials.add(Color::hsl(0.0, 0.95, 0.7))),
-            )).id(),
-            ItemKind::Square => commands.spawn((
-                Mesh2d(meshes.add(Rectangle::new(100.0, 100.0))),
-                MeshMaterial2d(materials.add(Color::hsl(240.0, 0.95, 0.7))),
-            )).id(),
-            ItemKind::EmptyDevice => {
-                let device = commands.spawn((
-                    Device { kind: DeviceKind::Empty },
-                    Mesh2d(meshes.add(Rectangle::new(80.0, 100.0))),
-                    MeshMaterial2d(materials.add(Color::hsl(160.0, 0.95, 0.7))),
-                )).id();
-
-                let output_port_1 = commands.spawn((
-                    Port(None),
-                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                    MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
-                    Transform::from_xyz(40.0, 30.0, 0.0),
-                )).observe(on_click_connect).id();
-                let output_port_2 = commands.spawn((
-                    Port(None),
-                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                    MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
-                    Transform::from_xyz(40.0, -30.0, 0.0),
-                )).observe(on_click_connect).id();
-                let input_port_1 = commands.spawn((
-                    Port(None),
-                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                    MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
-                    Transform::from_xyz(-40.0, 30.0, 0.0),
-                )).observe(on_click_connect).id();
-                let input_port_2 = commands.spawn((
-                    Port(None),
-                    Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                    MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
-                    Transform::from_xyz(-40.0, -30.0, 0.0),
-                )).observe(on_click_connect).id();
-
-                commands.entity(device).add_children(&vec![
-                    output_port_1,
-                    output_port_2,
-                    input_port_1,
-                    input_port_2,
-                ]);
-                commands.entity(output_port_1).add_one_related::<OutputPortOf>(device);
-                commands.entity(output_port_2).add_one_related::<OutputPortOf>(device);
-                commands.entity(input_port_1).add_one_related::<OutputPortOf>(device);
-                commands.entity(input_port_2).add_one_related::<OutputPortOf>(device);
-
-                device
-            },
-        };
-
-        commands.entity(item).insert(
-            Transform::from_xyz(world_position.x, world_position.y, 0.0)
-        );
     }
 }
 
@@ -230,7 +141,15 @@ fn display_port_connections(
     }
 }
 
-fn button_system(
+#[derive(Event)]
+struct SelectItem(ItemKind);
+
+#[derive(Event)]
+struct DeselectItem;
+
+/// The system for managing the visuals of the buttons.
+/// This is done separately to the item switching logic.
+fn button_visuals_system(
     mut interaction_query: Query<
         (
             &Interaction,
@@ -240,10 +159,9 @@ fn button_system(
         ),
         (Changed<Interaction>, With<Button>),
     >,
-    mut currently_placing: ResMut<CurrentlyPlacing>,
+    currently_placing: Res<CurrentlyPlacing>,
     placeable_items: Res<PlaceableItems>,
     placement_state: Res<State<ItemPlacementState>>,
-    mut next_placement_state: ResMut<NextState<ItemPlacementState>>,
 ) {
     for (
         interaction,
@@ -259,8 +177,6 @@ fn button_system(
                 Interaction::Pressed => {
                     color.0 = item_specification.button_colours.pressed.background;
                     border_color.0 = item_specification.button_colours.pressed.border;
-
-                    next_placement_state.set(ItemPlacementState::NotPlacing);
                 }
                 Interaction::Hovered => {
                     color.0 = item_specification.button_colours.hovered_selected.background;
@@ -276,15 +192,6 @@ fn button_system(
                 Interaction::Pressed => {
                     color.0 = item_specification.button_colours.pressed.background;
                     border_color.0 = item_specification.button_colours.pressed.border;
-
-                    // TODO: I don't like that doing the state change logic here means that
-                    //  it happens as soon as you press the button. I'd rather that it changes
-                    //  when you let go, but the logic is more complicated there.
-                    //  See if these buttons fire off events or something that you can listen to
-                    //  - it's possible that this logic should only be used for the cosmetic
-                    //  changes.
-                    currently_placing.0 = *item_kind;
-                    next_placement_state.set(ItemPlacementState::Placing);
                 }
                 Interaction::Hovered => {
                     color.0 = item_specification.button_colours.hovered_unselected.background;
@@ -301,6 +208,8 @@ fn button_system(
 
 fn setup(
     mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     // Generate list (and hashmap) of placeable items
     let items: Vec<ItemSpecification> = vec![
@@ -356,7 +265,7 @@ fn setup(
                 TextColor(Color::WHITE),
                 TextShadow::default(),
             )]
-        )).id();
+        )).observe(on_button_click).id();
         commands.entity(button_parent).add_child(button);
 
         // Add to map
@@ -365,4 +274,178 @@ fn setup(
         }
     }
     commands.insert_resource(PlaceableItems(item_map));
+
+    // Field on which the items are to be placed
+    commands.spawn((
+        Mesh2d(meshes.add(Rectangle::new(1000.0, 1000.0))),
+        MeshMaterial2d(materials.add(Color::hsl(30.0, 1.0, 0.3))),
+    )).observe(place_item_on_click);
+}
+
+fn place_item_on_click(
+    click: Trigger<Pointer<Click>>,
+    mut commands: Commands,
+    currently_placing: Res<CurrentlyPlacing>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    placement_state: Res<State<ItemPlacementState>>,
+) {
+    if *placement_state.get() != ItemPlacementState::Placing {
+        return;
+    }
+
+    let item = match currently_placing.0 {
+        ItemKind::Circle => commands.spawn((
+            Mesh2d(meshes.add(Circle::new(50.0))),
+            MeshMaterial2d(materials.add(Color::hsl(0.0, 0.95, 0.7))),
+        )).id(),
+        ItemKind::Square => commands.spawn((
+            Mesh2d(meshes.add(Rectangle::new(100.0, 100.0))),
+            MeshMaterial2d(materials.add(Color::hsl(240.0, 0.95, 0.7))),
+        )).id(),
+        ItemKind::EmptyDevice => {
+            let device = commands.spawn((
+                Device { kind: DeviceKind::Empty },
+                Mesh2d(meshes.add(Rectangle::new(80.0, 100.0))),
+                MeshMaterial2d(materials.add(Color::hsl(160.0, 0.95, 0.7))),
+            )).id();
+
+            let output_port_1 = commands.spawn((
+                Port(None),
+                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
+                Transform::from_xyz(40.0, 30.0, 0.0),
+            )).observe(on_click_connect).id();
+            let output_port_2 = commands.spawn((
+                Port(None),
+                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
+                Transform::from_xyz(40.0, -30.0, 0.0),
+            )).observe(on_click_connect).id();
+            let input_port_1 = commands.spawn((
+                Port(None),
+                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
+                Transform::from_xyz(-40.0, 30.0, 0.0),
+            )).observe(on_click_connect).id();
+            let input_port_2 = commands.spawn((
+                Port(None),
+                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
+                MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
+                Transform::from_xyz(-40.0, -30.0, 0.0),
+            )).observe(on_click_connect).id();
+
+            commands.entity(device).add_children(&vec![
+                output_port_1,
+                output_port_2,
+                input_port_1,
+                input_port_2,
+            ]);
+            commands.entity(output_port_1).add_one_related::<OutputPortOf>(device);
+            commands.entity(output_port_2).add_one_related::<OutputPortOf>(device);
+            commands.entity(input_port_1).add_one_related::<OutputPortOf>(device);
+            commands.entity(input_port_2).add_one_related::<OutputPortOf>(device);
+
+            device
+        },
+    };
+
+    // TODO: This positioning works for 2D but should be changed for 3D
+    let world_position = click.hit.position
+        .expect("Mesh picking hit should be a location in the world");
+    commands.entity(item).insert(
+        Transform::from_xyz(world_position.x, world_position.y, world_position.z + 1.0),
+    );
+}
+
+fn on_button_click(
+    mut click: Trigger<Pointer<Click>>,
+    query: Query<&HasItemKind>,
+    mut ev_select: EventWriter<SelectItem>,
+    mut ev_deselect: EventWriter<DeselectItem>,
+    mut currently_placing: ResMut<CurrentlyPlacing>,
+    placement_state: Res<State<ItemPlacementState>>,
+    mut next_placement_state: ResMut<NextState<ItemPlacementState>>,
+) {
+    let HasItemKind(item_kind) = query.get(click.target())
+        .expect("This observer should not trigger unless the target is an entity with a HasItemKind component");
+    if placement_state.get() == &ItemPlacementState::Placing
+        && currently_placing.0 == *item_kind
+    {
+        ev_deselect.write(DeselectItem);
+        // TODO: Should this be done separately, as a response to the above event?
+        next_placement_state.set(ItemPlacementState::NotPlacing);
+    } else {
+        ev_select.write(SelectItem(*item_kind));
+        // TODO: As above, should the following be done elsewhere in response to this event?
+        currently_placing.0 = *item_kind;
+        next_placement_state.set(ItemPlacementState::Placing);
+    }
+    click.propagate(false);
+}
+
+// TODO: There's gotta be a way of combining this with the identical code above, and
+//  I WILL FIND IT
+fn update_button_colour(
+    mut query: Query<(
+        &Interaction,
+        &mut BackgroundColor,
+        &mut BorderColor,
+        &HasItemKind,
+    )>,
+    mut ev_select: EventReader<SelectItem>,
+    mut ev_deselect: EventReader<DeselectItem>,
+    currently_placing: Res<CurrentlyPlacing>,
+    placeable_items: Res<PlaceableItems>,
+    placement_state: Res<State<ItemPlacementState>>,
+) {
+    // I'm not sure how I feel about doing it like this. Is this inefficient?
+    // I'm putting this note here because I'm a notorious premature optimiser, so if I
+    // don't address it in some way I will explode
+
+    // This is gross, but we run this update on all the buttons if there are any select
+    // OR deselect events, because it just doesn't matter otherwise
+    if ev_select.read().count() > 0 || ev_deselect.read().count() > 0 {
+        for (
+            interaction,
+            mut color,
+            mut border_color,
+            HasItemKind(item_kind),
+        ) in query.iter_mut() {
+            let item_specification = &placeable_items.0[item_kind];
+
+            if placement_state.get() == &ItemPlacementState::Placing
+                && currently_placing.0 == *item_kind {
+                match *interaction {
+                    Interaction::Pressed => {
+                        color.0 = item_specification.button_colours.pressed.background;
+                        border_color.0 = item_specification.button_colours.pressed.border;
+                    }
+                    Interaction::Hovered => {
+                        color.0 = item_specification.button_colours.hovered_selected.background;
+                        border_color.0 = item_specification.button_colours.hovered_selected.border;
+                    }
+                    Interaction::None => {
+                        color.0 = item_specification.button_colours.selected.background;
+                        border_color.0 = item_specification.button_colours.selected.border;
+                    }
+                }
+            } else {
+                match *interaction {
+                    Interaction::Pressed => {
+                        color.0 = item_specification.button_colours.pressed.background;
+                        border_color.0 = item_specification.button_colours.pressed.border;
+                    }
+                    Interaction::Hovered => {
+                        color.0 = item_specification.button_colours.hovered_unselected.background;
+                        border_color.0 = item_specification.button_colours.hovered_unselected.border;
+                    }
+                    Interaction::None => {
+                        color.0 = item_specification.button_colours.unselected.background;
+                        border_color.0 = item_specification.button_colours.unselected.border;
+                    }
+                }
+            }
+        }
+    }
 }
