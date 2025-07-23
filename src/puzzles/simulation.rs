@@ -52,9 +52,6 @@ pub struct OutputPortOf(Entity);
 #[relationship_target(relationship = OutputPortOf)]
 pub struct OutputPorts(Vec<Entity>);
 
-#[derive(Component)]
-struct Name(String);
-
 // TODO: Pretty certain that these relationships are the wrong way round!
 //  "OutgoingConnection" on an Entity should mean that this Entity IS an
 //  outgoing connection, not that it HAS one!
@@ -157,133 +154,133 @@ fn can_resolve_port_values_in_a_circuit_without_panicking() {
         Device {
             kind: DeviceKind::Empty,
         },
-        Name("Root".to_owned()),
+        Name::new("Root"),
     )).id();
     let branch_1 = app.world_mut().spawn((
         Device {
             kind: DeviceKind::Empty,
         },
-        Name("Branch 1".to_owned()),
+        Name::new("Branch 1"),
     )).id();
     let branch_2 = app.world_mut().spawn((
         Device {
             kind: DeviceKind::Empty,
         },
-        Name("Branch 2".to_owned()),
+        Name::new("Branch 2"),
     )).id();
     let leaf_1 = app.world_mut().spawn((
         Device {
             kind: DeviceKind::Empty,
         },
-        Name("Leaf 1".to_owned()),
+        Name::new("Leaf 1"),
     )).id();
     let leaf_2 = app.world_mut().spawn((
         Device {
             kind: DeviceKind::Empty,
         },
-        Name("Leaf 2".to_owned()),
+        Name::new("Leaf 2"),
     )).id();
     let leaf_3 = app.world_mut().spawn((
         Device {
             kind: DeviceKind::Empty,
         },
-        Name("Leaf 3".to_owned()),
+        Name::new("Leaf 3"),
     )).id();
 
     // Output ports
     let root_o1 = app.world_mut().spawn((
         OutputPortOf(root),
         Port(None),
-        Name("Root.o1".to_owned()),
+        Name::new("Root.o1"),
     )).id();
     let root_o2 = app.world_mut().spawn((
         OutputPortOf(root),
         Port(None),
-        Name("Root.o2".to_owned()),
+        Name::new("Root.o2"),
     )).id();
     let branch1_o1 = app.world_mut().spawn((
         OutputPortOf(branch_1),
         Port(None),
-        Name("Branch 1.o1".to_owned()),
+        Name::new("Branch 1.o1"),
     )).id();
     let branch1_o2 = app.world_mut().spawn((
         OutputPortOf(branch_1),
         Port(None),
-        Name("Branch 1.o2".to_owned()),
+        Name::new("Branch 1.o2"),
     )).id();
     let branch2_o1 = app.world_mut().spawn((
         OutputPortOf(branch_2),
         Port(None),
-        Name("Branch 2.o1".to_owned()),
+        Name::new("Branch 2.o1"),
     )).id();
     let branch2_o2 = app.world_mut().spawn((
         OutputPortOf(branch_2),
         Port(None),
-        Name("Branch 2.o2".to_owned()),
+        Name::new("Branch 2.o2"),
     )).id();
     let leaf1_o1 = app.world_mut().spawn((
         OutputPortOf(leaf_1),
         Port(None),
-        Name("Leaf 1.o1".to_owned()),
+        Name::new("Leaf 1.o1"),
     )).id();
     let leaf2_o1 = app.world_mut().spawn((
         OutputPortOf(leaf_2),
         Port(None),
-        Name("Leaf 2.o1".to_owned()),
+        Name::new("Leaf 2.o1"),
     )).id();
     let leaf3_o1 = app.world_mut().spawn((
         OutputPortOf(leaf_3),
         Port(None),
-        Name("Leaf 3.o1".to_owned()),
+        Name::new("Leaf 3.o1"),
     )).id();
 
     // Level outputs
     let out_1 = app.world_mut().spawn((
         LevelOutput,
         Port(None),
-        Name("Level output 1".to_owned()),
+        Name::new("Level output 1"),
     )).id();
     let out_2 = app.world_mut().spawn((
         LevelOutput,
         Port(None),
-        Name("Level output 2".to_owned()),
+        Name::new("Level output 2"),
     )).id();
     let out_3 = app.world_mut().spawn((
         LevelOutput,
         Port(None),
-        Name("Level output 3".to_owned()),
+        Name::new("Level output 3"),
     )).id();
 
     // Input ports
     let branch1_i1 = app.world_mut().spawn((
         InputPortOf(branch_1),
         Port(None),
-        Name("Branch 1.i1".to_owned()),
+        Name::new("Branch 1.i1"),
     )).id();
     let branch2_i1 = app.world_mut().spawn((
         InputPortOf(branch_2),
         Port(None),
-        Name("Branch 2.i1".to_owned()),
+        Name::new("Branch 2.i1"),
     )).id();
     let leaf1_i1 = app.world_mut().spawn((
         InputPortOf(leaf_1),
         Port(None),
-        Name("Leaf 1.i1".to_owned()),
+        Name::new("Leaf 1.i1"),
     )).id();
     let leaf2_i1 = app.world_mut().spawn((
         InputPortOf(leaf_2),
         Port(None),
-        Name("Leaf 2.i1".to_owned()),
+        Name::new("Leaf 2.i1"),
     )).id();
     let leaf2_i2 = app.world_mut().spawn((
         InputPortOf(leaf_2),
         Port(None),
-        Name("Leaf 2.i2".to_owned()),
+        Name::new("Leaf 2.i2"),
     )).id();
     let leaf3_i1 = app.world_mut().spawn((
         InputPortOf(leaf_3),
         Port(None),
-        Name("Leaf 3.i1".to_owned()),
+        Name::new("Leaf 3.i1"),
     )).id();
 
     // Connections
