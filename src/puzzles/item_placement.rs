@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use crate::puzzles::simulation::{Device, DeviceKind, OutgoingConnection, OutputPortOf, Port};
+use crate::puzzles::devices::SpawnDeviceCommandExt;
+use crate::puzzles::simulation::OutgoingConnection;
 use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
@@ -183,49 +184,19 @@ fn place_item_on_click(
             MeshMaterial2d(materials.add(Color::hsl(240.0, 0.95, 0.7))),
         )).id(),
         ItemKind::EmptyDevice => {
-            let device = commands.spawn((
-                Device { kind: DeviceKind::Empty },
-                Mesh2d(meshes.add(Rectangle::new(80.0, 100.0))),
-                MeshMaterial2d(materials.add(Color::hsl(160.0, 0.95, 0.7))),
-            )).id();
+            let entities = commands.spawn_device(
+                2,
+                2,
+                meshes.into_inner(),
+                materials.into_inner()
+            );
 
-            let output_port_1 = commands.spawn((
-                Port(None),
-                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
-                Transform::from_xyz(40.0, 30.0, 0.0),
-            )).observe(on_click_connect).id();
-            let output_port_2 = commands.spawn((
-                Port(None),
-                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                MeshMaterial2d(materials.add(Color::hsl(20.0, 0.95, 0.7))),
-                Transform::from_xyz(40.0, -30.0, 0.0),
-            )).observe(on_click_connect).id();
-            let input_port_1 = commands.spawn((
-                Port(None),
-                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
-                Transform::from_xyz(-40.0, 30.0, 0.0),
-            )).observe(on_click_connect).id();
-            let input_port_2 = commands.spawn((
-                Port(None),
-                Mesh2d(meshes.add(Rectangle::new(15.0, 30.0))),
-                MeshMaterial2d(materials.add(Color::hsl(340.0, 0.95, 0.7))),
-                Transform::from_xyz(-40.0, -30.0, 0.0),
-            )).observe(on_click_connect).id();
+            // Add connection observers on ports
+            for ent in entities.input_ports.iter().chain(entities.output_ports.iter()) {
+                commands.entity(*ent).observe(on_click_connect);
+            }
 
-            commands.entity(device).add_children(&vec![
-                output_port_1,
-                output_port_2,
-                input_port_1,
-                input_port_2,
-            ]);
-            commands.entity(output_port_1).add_one_related::<OutputPortOf>(device);
-            commands.entity(output_port_2).add_one_related::<OutputPortOf>(device);
-            commands.entity(input_port_1).add_one_related::<OutputPortOf>(device);
-            commands.entity(input_port_2).add_one_related::<OutputPortOf>(device);
-
-            device
+            entities.base
         },
     };
 
