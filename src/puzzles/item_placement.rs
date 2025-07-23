@@ -200,7 +200,6 @@ fn place_item_on_click(
         },
     };
 
-    // TODO: This positioning works for 2D but should be changed for 3D
     let world_position = click.hit.position
         .expect("Mesh picking hit should be a location in the world");
     commands.entity(item).insert(
