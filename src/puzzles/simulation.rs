@@ -38,18 +38,18 @@ pub struct Device {
 
 #[derive(Component)]
 #[relationship(relationship_target = InputPorts)]
-pub struct InputPortOf(Entity);
+pub struct InputPort(Entity);
 
 #[derive(Component)]
-#[relationship_target(relationship = InputPortOf)]
+#[relationship_target(relationship = InputPort)]
 pub struct InputPorts(Vec<Entity>);
 
 #[derive(Component)]
 #[relationship(relationship_target = OutputPorts)]
-pub struct OutputPortOf(Entity);
+pub struct OutputPort(Entity);
 
 #[derive(Component)]
-#[relationship_target(relationship = OutputPortOf)]
+#[relationship_target(relationship = OutputPort)]
 pub struct OutputPorts(Vec<Entity>);
 
 // TODO: Pretty certain that these relationships are the wrong way round!
@@ -71,11 +71,12 @@ struct LevelOutput;
 // TODO: Too specific? Should this be ValueHolder?
 pub struct Port(pub Option<u32>);
 
+// TODO: It's very possible this should be an exclusive system!
 fn resolve(
     q_device_entities: Query<Entity, With<Device>>,
     q_devices: Query<(Option<&InputPorts>, Option<&OutputPorts>), With<Device>>,
-    mut q_input_ports: Query<&mut Port, (Or<(With<InputPortOf>, With<IncomingConnections>)>, Without<OutgoingConnection>)>,
-    mut q_output_ports: Query<(&mut Port, &OutgoingConnection), (With<OutputPortOf>, Without<IncomingConnections>)>,
+    mut q_input_ports: Query<&mut Port, (Or<(With<InputPort>, With<IncomingConnections>)>, Without<OutgoingConnection>)>,
+    mut q_output_ports: Query<(&mut Port, &OutgoingConnection), (With<OutputPort>, Without<IncomingConnections>)>,
 ) {
     let mut device_queue: VecDeque<Entity> = VecDeque::new();
     device_queue.extend(q_device_entities);
@@ -189,47 +190,47 @@ fn can_resolve_port_values_in_a_circuit_without_panicking() {
 
     // Output ports
     let root_o1 = app.world_mut().spawn((
-        OutputPortOf(root),
+        OutputPort(root),
         Port(None),
         Name::new("Root.o1"),
     )).id();
     let root_o2 = app.world_mut().spawn((
-        OutputPortOf(root),
+        OutputPort(root),
         Port(None),
         Name::new("Root.o2"),
     )).id();
     let branch1_o1 = app.world_mut().spawn((
-        OutputPortOf(branch_1),
+        OutputPort(branch_1),
         Port(None),
         Name::new("Branch 1.o1"),
     )).id();
     let branch1_o2 = app.world_mut().spawn((
-        OutputPortOf(branch_1),
+        OutputPort(branch_1),
         Port(None),
         Name::new("Branch 1.o2"),
     )).id();
     let branch2_o1 = app.world_mut().spawn((
-        OutputPortOf(branch_2),
+        OutputPort(branch_2),
         Port(None),
         Name::new("Branch 2.o1"),
     )).id();
     let branch2_o2 = app.world_mut().spawn((
-        OutputPortOf(branch_2),
+        OutputPort(branch_2),
         Port(None),
         Name::new("Branch 2.o2"),
     )).id();
     let leaf1_o1 = app.world_mut().spawn((
-        OutputPortOf(leaf_1),
+        OutputPort(leaf_1),
         Port(None),
         Name::new("Leaf 1.o1"),
     )).id();
     let leaf2_o1 = app.world_mut().spawn((
-        OutputPortOf(leaf_2),
+        OutputPort(leaf_2),
         Port(None),
         Name::new("Leaf 2.o1"),
     )).id();
     let leaf3_o1 = app.world_mut().spawn((
-        OutputPortOf(leaf_3),
+        OutputPort(leaf_3),
         Port(None),
         Name::new("Leaf 3.o1"),
     )).id();
@@ -253,32 +254,32 @@ fn can_resolve_port_values_in_a_circuit_without_panicking() {
 
     // Input ports
     let branch1_i1 = app.world_mut().spawn((
-        InputPortOf(branch_1),
+        InputPort(branch_1),
         Port(None),
         Name::new("Branch 1.i1"),
     )).id();
     let branch2_i1 = app.world_mut().spawn((
-        InputPortOf(branch_2),
+        InputPort(branch_2),
         Port(None),
         Name::new("Branch 2.i1"),
     )).id();
     let leaf1_i1 = app.world_mut().spawn((
-        InputPortOf(leaf_1),
+        InputPort(leaf_1),
         Port(None),
         Name::new("Leaf 1.i1"),
     )).id();
     let leaf2_i1 = app.world_mut().spawn((
-        InputPortOf(leaf_2),
+        InputPort(leaf_2),
         Port(None),
         Name::new("Leaf 2.i1"),
     )).id();
     let leaf2_i2 = app.world_mut().spawn((
-        InputPortOf(leaf_2),
+        InputPort(leaf_2),
         Port(None),
         Name::new("Leaf 2.i2"),
     )).id();
     let leaf3_i1 = app.world_mut().spawn((
-        InputPortOf(leaf_3),
+        InputPort(leaf_3),
         Port(None),
         Name::new("Leaf 3.i1"),
     )).id();

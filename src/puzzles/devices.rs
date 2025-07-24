@@ -1,6 +1,6 @@
 use std::cmp::max;
 use bevy::prelude::*;
-use crate::puzzles::simulation::{Device, DeviceKind, InputPortOf, OutputPortOf, Port};
+use crate::puzzles::simulation::{Device, DeviceKind, InputPort, OutputPort, Port};
 
 pub struct DeviceEntities {
     pub base: Entity,
@@ -67,8 +67,10 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
                     input_port_start_y - i as f32 * (port_height + gap_between_ports),
                     1.0
                 ),
-            )).add_one_related::<InputPortOf>(base).id();
-            self.entity(base).add_child(input_port);
+            )).id();
+            self.entity(base)
+                .add_one_related::<InputPort>(input_port)
+                .add_child(input_port);
             input_ports.push(input_port);
         }
 
@@ -85,8 +87,10 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
                     output_port_start_y - i as f32 * (port_height + gap_between_ports),
                     1.0
                 ),
-            )).add_one_related::<OutputPortOf>(base).id();
-            self.entity(base).add_child(output_port);
+            )).id();
+            self.entity(base)
+                .add_one_related::<OutputPort>(output_port)
+                .add_child(output_port);
             output_ports.push(output_port);
         }
 
