@@ -1,0 +1,63 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ github.ref || github.run_id }}
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Install alsa and udev
+      run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
+  web:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ github.ref || github.run_id }}
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Install alsa and udev
+      run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
+    - name: Add wasm target
+      run: rustup target install wasm32-unknown-unknown
+    - name: Install wasm-bindgen
+      run: cargo install wasm-bindgen-cli
+    - name: Build
+      run: cargo build --release --target wasm32-unknown-unknown && wasm-bindgen --out-dir ./out/ --out-name "ship-6502" --target web ./target/wasm32-unknown-unknown/release/ship-6502.wasm
+    - name: Copy
+      run: cp index.html out/index.html
+    - name: Push
+      uses: s0/git-publish-subdir-action@develop
+      env:
+        SQUASH_HISTORY: true
+        REPO: self
+        BRANCH: gh-pages
+        FOLDER: out
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        MESSAGE: "Build: ({sha}) {msg}"
