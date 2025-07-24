@@ -1,6 +1,6 @@
 use std::cmp::max;
 use bevy::prelude::*;
-use crate::puzzles::simulation::{Device, DeviceKind, InputPort, OutputPort, Port};
+use crate::puzzles::simulation::{Device, InputPort, OutputPort, Port};
 
 pub struct DeviceEntities {
     pub base: Entity,
@@ -46,7 +46,7 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
         let output_port_material = materials.add(Color::hsl(20.0, 0.95, 0.7));
 
         let base = self.spawn((
-            Device { kind: DeviceKind::Empty },
+            Device::Empty,
             Mesh2d(base_mesh),
             MeshMaterial2d(base_material),
         )).id();

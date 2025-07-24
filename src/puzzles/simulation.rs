@@ -18,10 +18,6 @@ impl Plugin for SimulationPlugin {
 #[derive(Event)]
 pub struct StepSimulation;
 
-pub enum DeviceKind {
-    Empty,
-}
-
 #[derive(PartialEq)]
 enum ResolutionState {
     Unresolved,
@@ -32,8 +28,8 @@ enum ResolutionState {
 struct Resolvable(ResolutionState);
 
 #[derive(Component)]
-pub struct Device {
-    pub kind: DeviceKind,
+pub enum Device {
+    Empty,
 }
 
 #[derive(Component)]
@@ -152,39 +148,27 @@ fn can_resolve_port_values_in_a_circuit_without_panicking() {
 
     // Devices
     let root = app.world_mut().spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
+        Device::Empty,
         Name::new("Root"),
     )).id();
     let branch_1 = app.world_mut().spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
+        Device::Empty,
         Name::new("Branch 1"),
     )).id();
     let branch_2 = app.world_mut().spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
+        Device::Empty,
         Name::new("Branch 2"),
     )).id();
     let leaf_1 = app.world_mut().spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
+        Device::Empty,
         Name::new("Leaf 1"),
     )).id();
     let leaf_2 = app.world_mut().spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
+        Device::Empty,
         Name::new("Leaf 2"),
     )).id();
     let leaf_3 = app.world_mut().spawn((
-        Device {
-            kind: DeviceKind::Empty,
-        },
+        Device::Empty,
         Name::new("Leaf 3"),
     )).id();
 
