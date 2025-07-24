@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 use bevy::ecs::entity::EntityHashMap;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
+use crate::puzzles::devices::Device;
 
 pub struct SimulationPlugin;
 
@@ -26,11 +27,6 @@ enum ResolutionState {
 
 #[derive(Component)]
 struct Resolvable(ResolutionState);
-
-#[derive(Component)]
-pub enum Device {
-    Empty,
-}
 
 #[derive(Component)]
 #[relationship(relationship_target = InputPorts)]

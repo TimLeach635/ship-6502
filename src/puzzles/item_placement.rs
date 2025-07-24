@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use crate::puzzles::devices::SpawnDeviceCommandExt;
+use crate::puzzles::devices::{Device, SpawnDeviceCommandExt};
 use crate::puzzles::simulation::OutgoingConnection;
 use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 
@@ -185,8 +185,7 @@ fn place_item_on_click(
         )).id(),
         ItemKind::EmptyDevice => {
             let entities = commands.spawn_device(
-                2,
-                2,
+                Device::Empty,
                 meshes.into_inner(),
                 materials.into_inner()
             );
