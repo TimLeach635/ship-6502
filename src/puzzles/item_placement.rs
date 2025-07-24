@@ -5,7 +5,6 @@ use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 enum ItemKind {
-    EmptyDevice,
     ConstantDevice,
     RepeaterDevice,
     AdderDevice,
@@ -116,19 +115,14 @@ fn setup(
     // Generate list (and hashmap) of placeable items
     let items: Vec<ItemSpecification> = vec![
         ItemSpecification {
-            kind: ItemKind::EmptyDevice,
-            name: "Empty device".to_owned(),
-            button_hue: 0.0,
-        },
-        ItemSpecification {
             kind: ItemKind::ConstantDevice,
             name: "Constant device".to_owned(),
-            button_hue: 90.0,
+            button_hue: 30.0,
         },
         ItemSpecification {
             kind: ItemKind::RepeaterDevice,
             name: "Repeater device".to_owned(),
-            button_hue: 180.0,
+            button_hue: 150.0,
         },
         ItemSpecification {
             kind: ItemKind::AdderDevice,
@@ -181,20 +175,6 @@ fn place_item_on_click(
     }
 
     let item = match currently_placing.0 {
-        ItemKind::EmptyDevice => {
-            let entities = commands.spawn_device(
-                DeviceKind::Empty,
-                meshes.into_inner(),
-                materials.into_inner()
-            );
-
-            // Add connection observers on ports
-            for ent in entities.input_ports.iter().chain(entities.output_ports.iter()) {
-                commands.entity(*ent).observe(on_click_connect);
-            }
-
-            entities.base
-        },
         ItemKind::ConstantDevice => {
             let value = 10u32;
 
@@ -331,7 +311,6 @@ fn debug_indicators(
                 ItemPlacementState::Connecting => "Connecting",
             },
             match placing.0 {
-                ItemKind::EmptyDevice => "Placing: Empty device",
                 ItemKind::ConstantDevice => "Placing: Constant device",
                 ItemKind::RepeaterDevice => "Placing: Repeater device",
                 ItemKind::AdderDevice => "Placing: Adder device",

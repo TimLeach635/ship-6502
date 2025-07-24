@@ -3,7 +3,6 @@ use bevy::prelude::*;
 use crate::puzzles::simulation::{InputPort, OutputPort, Port};
 
 pub enum DeviceKind {
-    Empty,
     Constant {
         value: u32,
     },
@@ -13,7 +12,6 @@ pub enum DeviceKind {
 
 #[derive(Component)]
 pub enum Device {
-    Empty,
     Constant {
         value: u32,
         output_port: Entity,
@@ -60,11 +58,6 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
         materials: &mut Assets<ColorMaterial>
     ) -> DeviceEntities {
         match device {
-            DeviceKind::Empty => {
-                let entities = self.spawn_generic_device(2, 2, meshes, materials);
-                self.entity(entities.base).insert(Device::Empty);
-                entities
-            },
             DeviceKind::Constant { value } => {
                 let entities = self.spawn_generic_device(0, 1, meshes, materials);
                 let output_ent = entities.output_ports.first()
