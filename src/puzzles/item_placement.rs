@@ -191,7 +191,10 @@ fn place_item_on_click(
             }
 
             // Add text showing value
-            let label = commands.spawn(Text2d(value.to_string())).id();
+            let label = commands.spawn((
+                Text2d(value.to_string()),
+                TextColor(Color::BLACK),
+            )).id();
             commands.entity(entities.base).add_child(label);
 
             entities.base
@@ -209,7 +212,10 @@ fn place_item_on_click(
             }
 
             // Add text showing value
-            let label = commands.spawn(Text2d("Rep".to_owned())).id();
+            let label = commands.spawn((
+                Text2d("Rep".to_owned()),
+                TextColor(Color::BLACK),
+            )).id();
             commands.entity(entities.base).add_child(label);
 
             entities.base
@@ -227,7 +233,10 @@ fn place_item_on_click(
             }
 
             // Add text showing value
-            let label = commands.spawn(Text2d("Add".to_owned())).id();
+            let label = commands.spawn((
+                Text2d("Add".to_owned()),
+                TextColor(Color::BLACK),
+            )).id();
             commands.entity(entities.base).add_child(label);
 
             entities.base
