@@ -2,6 +2,10 @@ use std::cmp::max;
 use bevy::prelude::*;
 use crate::puzzles::simulation::{InputPort, OutputPort, Port};
 
+pub enum DeviceKind {
+    Empty,
+}
+
 #[derive(Component)]
 pub enum Device {
     Empty,
@@ -16,7 +20,7 @@ pub struct DeviceEntities {
 pub trait SpawnDeviceCommandExt {
     fn spawn_device(
         &mut self,
-        device: Device,
+        device: DeviceKind,
         meshes: &mut Assets<Mesh>,
         materials: &mut Assets<ColorMaterial>,
     ) -> DeviceEntities;
@@ -33,12 +37,16 @@ pub trait SpawnDeviceCommandExt {
 impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
     fn spawn_device(
         &mut self,
-        device: Device,
+        device: DeviceKind,
         meshes: &mut Assets<Mesh>,
         materials: &mut Assets<ColorMaterial>
     ) -> DeviceEntities {
         match device {
-            Device::Empty => self.spawn_generic_device(2, 2, meshes, materials),
+            DeviceKind::Empty => {
+                let entities = self.spawn_generic_device(2, 2, meshes, materials);
+                self.entity(entities.base).insert(Device::Empty);
+                entities
+            },
         }
     }
 
@@ -69,7 +77,6 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
         let output_port_material = materials.add(Color::hsl(20.0, 0.95, 0.7));
 
         let base = self.spawn((
-            Device::Empty,
             Mesh2d(base_mesh),
             MeshMaterial2d(base_material),
         )).id();
