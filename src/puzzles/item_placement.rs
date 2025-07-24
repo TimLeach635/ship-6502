@@ -8,6 +8,7 @@ enum ItemKind {
     Circle,
     Square,
     EmptyDevice,
+    ConstantDevice,
 }
 
 #[derive(Component)]
@@ -129,6 +130,11 @@ fn setup(
             name: "Empty device".to_owned(),
             button_hue: 160.0,
         },
+        ItemSpecification {
+            kind: ItemKind::ConstantDevice,
+            name: "Constant device".to_owned(),
+            button_hue: 80.0,
+        },
     ];
     // Ensure the resources are initialised
     commands.insert_resource(CurrentlyPlacing(items[0].kind));
@@ -197,6 +203,27 @@ fn place_item_on_click(
 
             entities.base
         },
+        ItemKind::ConstantDevice => {
+            let value = 10u32;
+
+            let entities = commands.spawn_device(
+                // TODO: Allow the user to choose the value
+                DeviceKind::Constant { value },
+                meshes.into_inner(),
+                materials.into_inner()
+            );
+
+            // Add connection observers on ports
+            for ent in entities.output_ports.iter() {  // Can omit inputs as there aren't any!
+                commands.entity(*ent).observe(on_click_connect);
+            }
+
+            // Add text showing value
+            let label = commands.spawn(Text2d(value.to_string())).id();
+            commands.entity(entities.base).add_child(label);
+
+            entities.base
+        }
     };
 
     let world_position = click.hit.position
@@ -279,6 +306,7 @@ fn debug_indicators(
                 ItemKind::Circle => "Placing: Circle",
                 ItemKind::Square => "Placing: Square",
                 ItemKind::EmptyDevice => "Placing: Empty device",
+                ItemKind::ConstantDevice => "Placing: Constant device",
             },
         );
     }

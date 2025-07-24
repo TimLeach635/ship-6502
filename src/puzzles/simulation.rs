@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use bevy::ecs::entity::EntityHashMap;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
-use crate::puzzles::devices::Device;
+use crate::puzzles::devices::{Device, DeviceKind, SpawnDeviceCommandExt};
 
 pub struct SimulationPlugin;
 
@@ -67,8 +67,8 @@ pub struct Port(pub Option<u32>);
 fn resolve(
     q_device_entities: Query<Entity, With<Device>>,
     q_devices: Query<(&Device, Option<&InputPorts>, Option<&OutputPorts>)>,
-    mut q_input_ports: Query<&mut Port, (Or<(With<InputPort>, With<IncomingConnections>)>, Without<OutgoingConnection>)>,
-    mut q_output_ports: Query<(&mut Port, &OutgoingConnection), (With<OutputPort>, Without<IncomingConnections>)>,
+    mut q_input_ports: Query<&mut Port, (Or<(With<InputPort>, With<IncomingConnections>)>, (Without<OutputPort>, Without<OutgoingConnection>))>,
+    mut q_output_ports: Query<(&mut Port, Option<&OutgoingConnection>), (With<OutputPort>, Without<IncomingConnections>)>,
 ) {
     let mut device_queue: VecDeque<Entity> = VecDeque::new();
     device_queue.extend(q_device_entities);
@@ -106,7 +106,7 @@ fn resolve(
                     } else {
                         // TODO: Handle gracefully. In the game this definitely should not panic
                         //  and instead will just be handled. This is not a crash situation!
-                        panic!("Encountered a cycle");
+                        panic!("Unresolvable");
                     }
                 }
             }
@@ -117,15 +117,29 @@ fn resolve(
         // their value to their connected input ports, rather than the other way round.
         // This is arbitrary, and it could be either way, but we have to be consistent!
         if let Some(outputs) = outputs_opt {
-            match device {
+            match *device {
                 Device::Empty => {
                     for output_entity in outputs.iter() {
-                        let (mut output_port, outgoing_connection) = q_output_ports.get_mut(output_entity)
+                        let (mut output_port, outgoing_conn_opt) = q_output_ports.get_mut(output_entity)
                             .expect("Should not have an output port without a Port component");
-                        let mut connected_input_port = q_input_ports.get_mut(outgoing_connection.get())
-                            .expect("Should not have an input port without a Port component");
-                        let value: u32 = 0;  // This will be what changes based on the actual device
+                        let value: u32 = 0;
                         output_port.0 = Some(value);
+
+                        if let Some(outgoing_conn) = outgoing_conn_opt {
+                            let mut connected_input_port = q_input_ports.get_mut(outgoing_conn.get())
+                                .expect("Should not have an input port without a Port component");
+                            connected_input_port.0 = Some(value);
+                        }
+                    }
+                },
+                Device::Constant { value, output_port } => {
+                    let (mut output_port, outgoing_conn_opt) = q_output_ports.get_mut(output_port)
+                        .expect("Should not have an output port without a Port component");
+                    output_port.0 = Some(value);
+
+                    if let Some(outgoing_conn) = outgoing_conn_opt {
+                        let mut connected_input_port = q_input_ports.get_mut(outgoing_conn.get())
+                            .expect("Should not have an input port without a Port component");
                         connected_input_port.0 = Some(value);
                     }
                 }
@@ -302,4 +316,27 @@ fn can_resolve_port_values_in_a_circuit_without_panicking() {
     assert!(app.world().get::<Port>(leaf2_i1).unwrap().0.is_some());
     assert!(app.world().get::<Port>(leaf2_i2).unwrap().0.is_some());
     assert!(app.world().get::<Port>(leaf3_i1).unwrap().0.is_some());
+}
+
+#[test]
+fn constant_device_outputs_its_value() {
+    let mut app = App::new();
+
+    let mut meshes: Assets<Mesh> = default();
+    let mut materials: Assets<ColorMaterial> = default();
+
+    let constant_device_entities = app.world_mut().commands()
+        .spawn_device(DeviceKind::Constant { value: 10 }, &mut meshes, &mut materials);
+    let output_port_ent = constant_device_entities.output_ports.first().unwrap();
+
+    // Systems
+    app.add_systems(Update, resolve);
+
+    // Perform update
+    app.update();
+
+    // Confirm that output port has been given the right value
+    let result = app.world().get::<Port>(*output_port_ent).unwrap().0;
+    assert!(result.is_some());
+    assert_eq!(result.unwrap(), 10);
 }

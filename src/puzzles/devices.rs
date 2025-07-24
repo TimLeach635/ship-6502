@@ -4,11 +4,18 @@ use crate::puzzles::simulation::{InputPort, OutputPort, Port};
 
 pub enum DeviceKind {
     Empty,
+    Constant {
+        value: u32,
+    },
 }
 
 #[derive(Component)]
 pub enum Device {
     Empty,
+    Constant {
+        value: u32,
+        output_port: Entity,
+    },
 }
 
 pub struct DeviceEntities {
@@ -45,6 +52,16 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
             DeviceKind::Empty => {
                 let entities = self.spawn_generic_device(2, 2, meshes, materials);
                 self.entity(entities.base).insert(Device::Empty);
+                entities
+            },
+            DeviceKind::Constant { value } => {
+                let entities = self.spawn_generic_device(0, 1, meshes, materials);
+                let output_ent = entities.output_ports.first()
+                    .expect("Spawned device should have an output port");
+                self.entity(entities.base).insert(Device::Constant {
+                    value,
+                    output_port: *output_ent,
+                });
                 entities
             },
         }
