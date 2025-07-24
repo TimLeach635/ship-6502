@@ -7,6 +7,8 @@ pub enum DeviceKind {
     Constant {
         value: u32,
     },
+    Repeater,
+    Adder,
 }
 
 #[derive(Component)]
@@ -14,6 +16,15 @@ pub enum Device {
     Empty,
     Constant {
         value: u32,
+        output_port: Entity,
+    },
+    Repeater {
+        input_port: Entity,
+        output_port: Entity,
+    },
+    Adder {
+        input_port_1: Entity,
+        input_port_2: Entity,
         output_port: Entity,
     },
 }
@@ -61,6 +72,28 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
                 self.entity(entities.base).insert(Device::Constant {
                     value,
                     output_port: *output_ent,
+                });
+                entities
+            },
+            DeviceKind::Repeater => {
+                let entities = self.spawn_generic_device(1, 1, meshes, materials);
+                let input_ent = entities.input_ports[0];
+                let output_ent = entities.output_ports[0];
+                self.entity(entities.base).insert(Device::Repeater {
+                    input_port: input_ent,
+                    output_port: output_ent,
+                });
+                entities
+            },
+            DeviceKind::Adder => {
+                let entities = self.spawn_generic_device(2, 1, meshes, materials);
+                let input_1_ent = entities.input_ports[0];
+                let input_2_ent = entities.input_ports[1];
+                let output_ent = entities.output_ports[0];
+                self.entity(entities.base).insert(Device::Adder {
+                    input_port_1: input_1_ent,
+                    input_port_2: input_2_ent,
+                    output_port: output_ent,
                 });
                 entities
             },

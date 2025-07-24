@@ -1,14 +1,14 @@
 use bevy::prelude::*;
 use crate::puzzles::devices::{DeviceKind, SpawnDeviceCommandExt};
-use crate::puzzles::simulation::OutgoingConnection;
+use crate::puzzles::simulation::ConnectionStart;
 use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 enum ItemKind {
-    Circle,
-    Square,
     EmptyDevice,
     ConstantDevice,
+    RepeaterDevice,
+    AdderDevice,
 }
 
 #[derive(Component)]
@@ -75,9 +75,9 @@ fn on_click_connect(
             // TODO: Check which end is which!
             //  Currently this assumes that you click the output port first, then the input port
             commands
-                .entity(connection_origin.0
-                    .expect("Connection origin should be `Some` if in the `Connecting` state"))
-                .add_one_related::<OutgoingConnection>(click.target);
+                .entity(click.target)
+                .add_one_related::<ConnectionStart>(connection_origin.0
+                    .expect("Connection origin should be `Some` if in the `Connecting` state"));
 
             connection_origin.0 = None;
             next_placement_state.set(ItemPlacementState::NotPlacing);
@@ -88,10 +88,10 @@ fn on_click_connect(
 
 fn display_port_connections(
     mut gizmos: Gizmos,
-    q_outgoings: Query<(Entity, &OutgoingConnection)>,
+    q_outgoings: Query<(Entity, &ConnectionStart)>,
     q_global_transforms: Query<&GlobalTransform>,
 ) {
-    for (source_ent, OutgoingConnection(dest_ent)) in q_outgoings.iter() {
+    for (source_ent, ConnectionStart(dest_ent)) in q_outgoings.iter() {
         let source = q_global_transforms.get(source_ent).unwrap();
         let destination = q_global_transforms.get(*dest_ent).unwrap();
         gizmos.arrow_2d(
@@ -116,24 +116,24 @@ fn setup(
     // Generate list (and hashmap) of placeable items
     let items: Vec<ItemSpecification> = vec![
         ItemSpecification {
-            kind: ItemKind::Circle,
-            name: "Circle".to_owned(),
-            button_hue: 0.0,
-        },
-        ItemSpecification {
-            kind: ItemKind::Square,
-            name: "Square".to_owned(),
-            button_hue: 240.0,
-        },
-        ItemSpecification {
             kind: ItemKind::EmptyDevice,
             name: "Empty device".to_owned(),
-            button_hue: 160.0,
+            button_hue: 0.0,
         },
         ItemSpecification {
             kind: ItemKind::ConstantDevice,
             name: "Constant device".to_owned(),
-            button_hue: 80.0,
+            button_hue: 90.0,
+        },
+        ItemSpecification {
+            kind: ItemKind::RepeaterDevice,
+            name: "Repeater device".to_owned(),
+            button_hue: 180.0,
+        },
+        ItemSpecification {
+            kind: ItemKind::AdderDevice,
+            name: "Adder device".to_owned(),
+            button_hue: 270.0,
         },
     ];
     // Ensure the resources are initialised
@@ -172,8 +172,8 @@ fn place_item_on_click(
     click: Trigger<Pointer<Click>>,
     mut commands: Commands,
     currently_placing: Res<CurrentlyPlacing>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    meshes: ResMut<Assets<Mesh>>,
+    materials: ResMut<Assets<ColorMaterial>>,
     placement_state: Res<State<ItemPlacementState>>,
 ) {
     if *placement_state.get() != ItemPlacementState::Placing {
@@ -181,14 +181,6 @@ fn place_item_on_click(
     }
 
     let item = match currently_placing.0 {
-        ItemKind::Circle => commands.spawn((
-            Mesh2d(meshes.add(Circle::new(50.0))),
-            MeshMaterial2d(materials.add(Color::hsl(0.0, 0.95, 0.7))),
-        )).id(),
-        ItemKind::Square => commands.spawn((
-            Mesh2d(meshes.add(Rectangle::new(100.0, 100.0))),
-            MeshMaterial2d(materials.add(Color::hsl(240.0, 0.95, 0.7))),
-        )).id(),
         ItemKind::EmptyDevice => {
             let entities = commands.spawn_device(
                 DeviceKind::Empty,
@@ -224,6 +216,42 @@ fn place_item_on_click(
 
             entities.base
         }
+        ItemKind::RepeaterDevice => {
+            let entities = commands.spawn_device(
+                DeviceKind::Repeater,
+                meshes.into_inner(),
+                materials.into_inner()
+            );
+
+            // Add connection observers on ports
+            for ent in entities.input_ports.iter().chain(entities.output_ports.iter()) {
+                commands.entity(*ent).observe(on_click_connect);
+            }
+
+            // Add text showing value
+            let label = commands.spawn(Text2d("Rep".to_owned())).id();
+            commands.entity(entities.base).add_child(label);
+
+            entities.base
+        },
+        ItemKind::AdderDevice => {
+            let entities = commands.spawn_device(
+                DeviceKind::Adder,
+                meshes.into_inner(),
+                materials.into_inner()
+            );
+
+            // Add connection observers on ports
+            for ent in entities.input_ports.iter().chain(entities.output_ports.iter()) {
+                commands.entity(*ent).observe(on_click_connect);
+            }
+
+            // Add text showing value
+            let label = commands.spawn(Text2d("Add".to_owned())).id();
+            commands.entity(entities.base).add_child(label);
+
+            entities.base
+        },
     };
 
     let world_position = click.hit.position
@@ -303,10 +331,10 @@ fn debug_indicators(
                 ItemPlacementState::Connecting => "Connecting",
             },
             match placing.0 {
-                ItemKind::Circle => "Placing: Circle",
-                ItemKind::Square => "Placing: Square",
                 ItemKind::EmptyDevice => "Placing: Empty device",
                 ItemKind::ConstantDevice => "Placing: Constant device",
+                ItemKind::RepeaterDevice => "Placing: Repeater device",
+                ItemKind::AdderDevice => "Placing: Adder device",
             },
         );
     }
