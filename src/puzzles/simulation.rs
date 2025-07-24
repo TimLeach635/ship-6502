@@ -70,7 +70,7 @@ pub struct Port(pub Option<u32>);
 // TODO: It's very possible this should be an exclusive system!
 fn resolve(
     q_device_entities: Query<Entity, With<Device>>,
-    q_devices: Query<(Option<&InputPorts>, Option<&OutputPorts>), With<Device>>,
+    q_devices: Query<(&Device, Option<&InputPorts>, Option<&OutputPorts>)>,
     mut q_input_ports: Query<&mut Port, (Or<(With<InputPort>, With<IncomingConnections>)>, Without<OutgoingConnection>)>,
     mut q_output_ports: Query<(&mut Port, &OutgoingConnection), (With<OutputPort>, Without<IncomingConnections>)>,
 ) {
@@ -80,8 +80,8 @@ fn resolve(
     visit_counts.extend(q_device_entities.iter().map(|ent| (ent, 0)));  // counts start at 0
     let max_count = device_queue.len();
 
-    while let Some(device) = device_queue.pop_front() {
-        let (inputs_opt, outputs_opt) = q_devices.get(device)
+    while let Some(device_ent) = device_queue.pop_front() {
+        let (device, inputs_opt, outputs_opt) = q_devices.get(device_ent)
             .expect("Device should always be in query");
 
         // We can resolve this device if all the inputs are known.
@@ -100,12 +100,12 @@ fn resolve(
                     // TODO: This is actually a really inefficient way of traversing the
                     //  device tree - replace this with something less naive.
                     let visit_count = visit_counts
-                        .get(&device)
+                        .get(&device_ent)
                         .map(|n| *n)
                         .unwrap_or_default();
                     if visit_count < max_count {
-                        visit_counts.insert(device, visit_count + 1);
-                        device_queue.push_back(device);
+                        visit_counts.insert(device_ent, visit_count + 1);
+                        device_queue.push_back(device_ent);
                         continue;
                     } else {
                         // TODO: Handle gracefully. In the game this definitely should not panic
@@ -117,20 +117,22 @@ fn resolve(
         }
 
         // If we reach this point, all the input ports have known values
-        // TODO: Actually perform device-specific processing of the inputs
-        // For now, just set all the output ports of this device to 0.
         // Note - we arbitrarily decide that it is the job of the output ports to pass
         // their value to their connected input ports, rather than the other way round.
         // This is arbitrary, and it could be either way, but we have to be consistent!
         if let Some(outputs) = outputs_opt {
-            for output_entity in outputs.iter() {
-                let (mut output_port, outgoing_connection) = q_output_ports.get_mut(output_entity)
-                    .expect("Should not have an output port without a Port component");
-                let mut connected_input_port = q_input_ports.get_mut(outgoing_connection.get())
-                    .expect("Should not have an input port without a Port component");
-                let value: u32 = 0;  // This will be what changes based on the actual device
-                output_port.0 = Some(value);
-                connected_input_port.0 = Some(value);
+            match device {
+                Device::Empty => {
+                    for output_entity in outputs.iter() {
+                        let (mut output_port, outgoing_connection) = q_output_ports.get_mut(output_entity)
+                            .expect("Should not have an output port without a Port component");
+                        let mut connected_input_port = q_input_ports.get_mut(outgoing_connection.get())
+                            .expect("Should not have an input port without a Port component");
+                        let value: u32 = 0;  // This will be what changes based on the actual device
+                        output_port.0 = Some(value);
+                        connected_input_port.0 = Some(value);
+                    }
+                }
             }
         }
     }
