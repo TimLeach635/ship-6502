@@ -3,16 +3,23 @@ use bevy::ecs::entity::EntityHashMap;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
 use crate::puzzles::devices::{Device, DeviceKind, SpawnDeviceCommandExt};
+use crate::ui::buttons::SpawnButtonCommandExt;
 
 pub struct SimulationPlugin;
 
 impl Plugin for SimulationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<StepSimulation>()
-            .add_systems(
-                PreUpdate,
-                resolve.run_if(on_event::<StepSimulation>),
-            );
+        app.add_event::<StepSimulation>();
+        app.add_systems(Startup, setup);
+        app.add_systems(
+            PreUpdate,
+            resolve.run_if(on_event::<StepSimulation>),
+        );
+
+        #[cfg(debug_assertions)]
+        {
+            app.add_systems(Update, debug_show_port_values);
+        }
     }
 }
 
@@ -59,6 +66,30 @@ struct LevelOutput;
 #[derive(Component)]
 // TODO: Too specific? Should this be ValueHolder?
 pub struct Port(pub Option<u32>);
+
+fn setup(mut commands: Commands) {
+    // Buttons for simulation control
+    let button_parent = commands.spawn((
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(20.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::End,
+            justify_content: JustifyContent::Center,
+            ..default()
+        },
+    )).id();
+
+    let step_button = commands.spawn_button(120.0, "Step", on_click_step);
+    commands.entity(button_parent).add_child(step_button);
+}
+
+fn on_click_step(
+    _: Trigger<Pointer<Click>>,
+    mut ev_step: EventWriter<StepSimulation>,
+) {
+    ev_step.write(StepSimulation);
+}
 
 // TODO: It's very possible this should be an exclusive system!
 fn resolve(
@@ -242,4 +273,23 @@ fn complicated_network_can_resolve_all_devices() {
     let result = app.world().get::<Port>(adder_ents.output_ports[0]).unwrap().0;
     assert!(result.is_some());
     assert_eq!(result.unwrap(), 3);
+}
+
+// Debug
+#[cfg(debug_assertions)]
+fn debug_show_port_values(
+    q_ports: Query<(&Port, &Children)>,
+    mut q_text: Query<&mut Text2d>,
+) {
+    for (port, children) in q_ports {
+        for child_ent in children {
+            if let Ok(mut text) = q_text.get_mut(*child_ent) {
+                text.0 = if let Some(value) = port.0 {
+                    value.to_string()
+                } else {
+                    "<none>".to_owned()
+                }
+            }
+        }
+    }
 }

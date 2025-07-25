@@ -62,7 +62,7 @@ fn on_click_connect(
     mut next_placement_state: ResMut<NextState<ItemPlacementState>>,
     mut connection_origin: ResMut<ConnectionOrigin>,
 ) {
-    println!("Running `on_click_connect` system");
+    trace!("Running `on_click_connect` system");
     // TODO: Enforce that the connection endpoints must be the correct types of port
     match placement_state.get() {
         ItemPlacementState::NotPlacing => {

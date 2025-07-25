@@ -1,5 +1,6 @@
 use std::cmp::max;
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 use crate::puzzles::simulation::{InputPort, OutputPort, Port};
 
 pub enum DeviceKind {
@@ -141,6 +142,17 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
                     1.0
                 ),
             )).id();
+
+            #[cfg(debug_assertions)]
+            {
+                let port_debug_label = self.spawn((
+                    Text2d("".to_owned()),
+                    TextColor(Color::BLACK),
+                    Anchor::BottomRight,
+                )).id();
+                self.entity(input_port).add_child(port_debug_label);
+            }
+
             self.entity(base)
                 .add_one_related::<InputPort>(input_port)
                 .add_child(input_port);
@@ -161,6 +173,17 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
                     1.0
                 ),
             )).id();
+
+            #[cfg(debug_assertions)]
+            {
+                let port_debug_label = self.spawn((
+                    Text2d("".to_owned()),
+                    TextColor(Color::BLACK),
+                    Anchor::BottomLeft,
+                )).id();
+                self.entity(output_port).add_child(port_debug_label);
+            }
+
             self.entity(base)
                 .add_one_related::<OutputPort>(output_port)
                 .add_child(output_port);
