@@ -1,3 +1,4 @@
+use bevy::color::palettes::basic::RED;
 use bevy::prelude::*;
 use crate::puzzles::devices::{DeviceKind, SpawnDeviceCommandExt};
 use crate::puzzles::simulation::{ConnectionStart, InputPort, OutputPort};
@@ -54,7 +55,7 @@ impl Plugin for ItemPlacementPlugin {
         app.add_systems(Startup, setup);
         app.add_event::<SelectItem>();
         app.add_event::<DeselectItem>();
-        app.add_systems(PostUpdate, display_port_connections
+        app.add_systems(PostUpdate, (display_port_connections, display_ghost_connection)
             .after(TransformSystem::TransformPropagate));  // Uses GlobalTransforms
 
         #[cfg(debug_assertions)]
@@ -137,6 +138,52 @@ fn display_port_connections(
             destination.translation().truncate(),
             Color::WHITE,
         );
+    }
+}
+
+/// Display a "ghost connection" if you're currently making a connection between ports
+fn display_ghost_connection(
+    mut gizmos: Gizmos,
+    q_port_transforms: Query<&GlobalTransform, (Or<(With<InputPort>, With<OutputPort>)>, Without<Window>, Without<Camera>)>,
+    q_windows: Query<&Window>,
+    q_cameras: Query<(&Camera, &GlobalTransform)>,
+    placement_state: Res<State<ItemPlacementState>>,
+    origin: Res<ConnectionOrigin>,
+) {
+    if let ItemPlacementState::Connecting { origin: origin_direction } = placement_state.get() {
+        // Find cursor position in world
+        let window = q_windows.single()
+            .expect("Should be only one window");
+        let (camera, camera_transform) = q_cameras.single()
+            .expect("Should be only one camera");
+
+        if let Some(cursor_position) = window.cursor_position() {
+            if let Ok(cursor_world_position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
+                match origin_direction {
+                    InputOrOutput::Input => {
+                        cursor_world_position;
+                        let destination = q_port_transforms
+                            .get(origin.0.expect("Should have origin if in \"Connecting\" state"))
+                            .unwrap();
+                        gizmos.arrow_2d(
+                            cursor_world_position,
+                            destination.translation().truncate(),
+                            RED,
+                        );
+                    }
+                    InputOrOutput::Output => {
+                        let source = q_port_transforms
+                            .get(origin.0.expect("Should have origin if in \"Connecting\" state"))
+                            .unwrap();
+                        gizmos.arrow_2d(
+                            source.translation().truncate(),
+                            cursor_world_position,
+                            RED,
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 
