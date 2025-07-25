@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::puzzles::devices::{DeviceKind, SpawnDeviceCommandExt};
-use crate::puzzles::simulation::ConnectionStart;
+use crate::puzzles::simulation::{ConnectionStart, InputPort, OutputPort};
 use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
@@ -23,12 +23,21 @@ struct ItemSpecification {
 #[derive(Resource)]
 struct CurrentlyPlacing(ItemKind);
 
+#[derive(Default, Debug, Clone, PartialEq, Eq, Hash)]
+enum InputOrOutput {
+    #[default]
+    Input,
+    Output,
+}
+
 #[derive(States, Default, Debug, Clone, PartialEq, Eq, Hash)]
 enum ItemPlacementState {
     #[default]
     NotPlacing,  // TODO: Rename this option?
     Placing,
-    Connecting,
+    Connecting {
+        origin: InputOrOutput,
+    },
 }
 
 #[derive(Resource)]
@@ -59,30 +68,59 @@ impl Plugin for ItemPlacementPlugin {
 fn on_click_connect(
     click: Trigger<Pointer<Click>>,
     mut commands: Commands,
+    q_ports: Query<(Option<&InputPort>, Option<&OutputPort>), Or<(With<InputPort>, With<OutputPort>)>>,
     placement_state: Res<State<ItemPlacementState>>,
     mut next_placement_state: ResMut<NextState<ItemPlacementState>>,
     mut connection_origin: ResMut<ConnectionOrigin>,
 ) {
-    trace!("Running `on_click_connect` system");
-    // TODO: Enforce that the connection endpoints must be the correct types of port
-    match placement_state.get() {
-        ItemPlacementState::NotPlacing => {
-            connection_origin.0 = Some(click.target);
-            next_placement_state.set(ItemPlacementState::Connecting);
-        }
-        ItemPlacementState::Connecting => {
-            // Create connection
-            // TODO: Check which end is which!
-            //  Currently this assumes that you click the output port first, then the input port
-            commands
-                .entity(click.target)
-                .add_one_related::<ConnectionStart>(connection_origin.0
-                    .expect("Connection origin should be `Some` if in the `Connecting` state"));
+    if let Ok((in_opt, out_opt)) = q_ports.get(click.target()) {
+        assert_ne!(
+            in_opt.is_some(), out_opt.is_some(),
+            "Either this is an input or an output, but it shouldn't be both."
+        );
+        match placement_state.get() {
+            ItemPlacementState::NotPlacing => {
+                connection_origin.0 = Some(click.target);
+                next_placement_state.set(ItemPlacementState::Connecting {
+                    origin: match in_opt.is_some() {
+                        true => InputOrOutput::Input,
+                        false => InputOrOutput::Output,
+                    }
+                });
+            }
+            ItemPlacementState::Connecting { origin } => {
+                // Create connection.
+                // Can only connect inputs to outputs and vice versa, so:
+                match origin {
+                    InputOrOutput::Input => {
+                        if out_opt.is_some() {
+                            commands
+                                .entity(connection_origin.0
+                                    .expect("Connection origin should be `Some` if in the `Connecting` state"))
+                                .add_one_related::<ConnectionStart>(click.target);
 
-            connection_origin.0 = None;
-            next_placement_state.set(ItemPlacementState::NotPlacing);
+                            connection_origin.0 = None;
+                            next_placement_state.set(ItemPlacementState::NotPlacing);
+                        }
+                    }
+                    InputOrOutput::Output => {
+                        if in_opt.is_some() {
+                            commands
+                                .entity(click.target)
+                                .add_one_related::<ConnectionStart>(connection_origin.0
+                                    .expect("Connection origin should be `Some` if in the `Connecting` state"));
+
+                            connection_origin.0 = None;
+                            next_placement_state.set(ItemPlacementState::NotPlacing);
+                        }
+                    }
+                }
+                // Does nothing if the player clicks on two inputs or two outputs in a row
+                // Note that this also forbids the user from connecting a port to itself, which
+                // is a nice freebie
+            }
+            _ => {/* Don't do anything */}
         }
-        _ => {/* Don't do anything */}
     }
 }
 
@@ -345,7 +383,8 @@ fn debug_indicators(
             match state.get() {
                 ItemPlacementState::NotPlacing => "Not placing",
                 ItemPlacementState::Placing => "Placing",
-                ItemPlacementState::Connecting => "Connecting",
+                ItemPlacementState::Connecting { origin: InputOrOutput::Input } => "Connecting (from input)",
+                ItemPlacementState::Connecting { origin: InputOrOutput::Output } => "Connecting (from output)",
             },
             match placing.0 {
                 ItemKind::ConstantDevice => "Placing: Constant device",
