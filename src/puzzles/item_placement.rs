@@ -161,7 +161,6 @@ fn display_ghost_connection(
             if let Ok(cursor_world_position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
                 match origin_direction {
                     InputOrOutput::Input => {
-                        cursor_world_position;
                         let destination = q_port_transforms
                             .get(origin.0.expect("Should have origin if in \"Connecting\" state"))
                             .unwrap();
