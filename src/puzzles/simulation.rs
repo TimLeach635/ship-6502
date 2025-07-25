@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use bevy::ecs::entity::EntityHashMap;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
-use crate::puzzles::devices::{Device, DeviceKind, SpawnDeviceCommandExt};
+use crate::puzzles::devices::Device;
 use crate::ui::buttons::SpawnButtonCommandExt;
 
 pub struct SimulationPlugin;
@@ -243,70 +243,76 @@ fn update_port_value_display(
     }
 }
 
-#[test]
-fn constant_device_outputs_its_value() {
-    let mut app = App::new();
+#[cfg(test)]
+mod tests {
+    use crate::puzzles::devices::{DeviceKind, SpawnDeviceCommandExt};
+    use super::*;
 
-    let mut meshes: Assets<Mesh> = default();
-    let mut materials: Assets<ColorMaterial> = default();
+    #[test]
+    fn constant_device_outputs_its_value() {
+        let mut app = App::new();
 
-    let constant_device_entities = app.world_mut().commands()
-        .spawn_device(DeviceKind::Constant { value: 10 }, &mut meshes, &mut materials);
-    let output_port_ent = constant_device_entities.output_ports.first().unwrap();
+        let mut meshes: Assets<Mesh> = default();
+        let mut materials: Assets<ColorMaterial> = default();
 
-    // Systems
-    app.add_systems(Update, resolve);
+        let constant_device_entities = app.world_mut().commands()
+            .spawn_device(DeviceKind::Constant { value: 10 }, &mut meshes, &mut materials);
+        let output_port_ent = constant_device_entities.output_ports.first().unwrap();
 
-    // Perform update
-    app.update();
+        // Systems
+        app.add_systems(Update, resolve);
 
-    // Confirm that output port has been given the right value
-    let result = app.world().get::<Port>(*output_port_ent).unwrap().0;
-    assert!(result.is_some());
-    assert_eq!(result.unwrap(), 10);
-}
+        // Perform update
+        app.update();
 
-#[test]
-fn complicated_network_can_resolve_all_devices() {
-    let mut app = App::new();
+        // Confirm that output port has been given the right value
+        let result = app.world().get::<Port>(*output_port_ent).unwrap().0;
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), 10);
+    }
 
-    let mut meshes: Assets<Mesh> = default();
-    let mut materials: Assets<ColorMaterial> = default();
+    #[test]
+    fn complicated_network_can_resolve_all_devices() {
+        let mut app = App::new();
 
-    // Devices
-    let const_1_ents = app.world_mut().commands()
-        .spawn_device(DeviceKind::Constant { value: 1 }, &mut meshes, &mut materials);
-    let const_2_ents = app.world_mut().commands()
-        .spawn_device(DeviceKind::Constant { value: 2 }, &mut meshes, &mut materials);
-    let repeater_1_ents = app.world_mut().commands()
-        .spawn_device(DeviceKind::Repeater, &mut meshes, &mut materials);
-    let repeater_2_ents = app.world_mut().commands()
-        .spawn_device(DeviceKind::Repeater, &mut meshes, &mut materials);
-    let adder_ents = app.world_mut().commands()
-        .spawn_device(DeviceKind::Adder, &mut meshes, &mut materials);
-    
-    // Connections
-    //   const_1 -> repeater_1
-    app.world_mut().commands().entity(repeater_1_ents.input_ports[0])
-        .add_one_related::<ConnectionStart>(const_1_ents.output_ports[0]);
-    //   const_2 -> repeater_2
-    app.world_mut().commands().entity(repeater_2_ents.input_ports[0])
-        .add_one_related::<ConnectionStart>(const_2_ents.output_ports[0]);
-    //   repeater_1 -> adder
-    app.world_mut().commands().entity(adder_ents.input_ports[0])
-        .add_one_related::<ConnectionStart>(repeater_1_ents.output_ports[0]);
-    //   repeater_2 -> adder
-    app.world_mut().commands().entity(adder_ents.input_ports[1])
-        .add_one_related::<ConnectionStart>(repeater_2_ents.output_ports[0]);
+        let mut meshes: Assets<Mesh> = default();
+        let mut materials: Assets<ColorMaterial> = default();
 
-    // Systems
-    app.add_systems(Update, resolve);
+        // Devices
+        let const_1_ents = app.world_mut().commands()
+            .spawn_device(DeviceKind::Constant { value: 1 }, &mut meshes, &mut materials);
+        let const_2_ents = app.world_mut().commands()
+            .spawn_device(DeviceKind::Constant { value: 2 }, &mut meshes, &mut materials);
+        let repeater_1_ents = app.world_mut().commands()
+            .spawn_device(DeviceKind::Repeater, &mut meshes, &mut materials);
+        let repeater_2_ents = app.world_mut().commands()
+            .spawn_device(DeviceKind::Repeater, &mut meshes, &mut materials);
+        let adder_ents = app.world_mut().commands()
+            .spawn_device(DeviceKind::Adder, &mut meshes, &mut materials);
 
-    // Perform update
-    app.update();
+        // Connections
+        //   const_1 -> repeater_1
+        app.world_mut().commands().entity(repeater_1_ents.input_ports[0])
+            .add_one_related::<ConnectionStart>(const_1_ents.output_ports[0]);
+        //   const_2 -> repeater_2
+        app.world_mut().commands().entity(repeater_2_ents.input_ports[0])
+            .add_one_related::<ConnectionStart>(const_2_ents.output_ports[0]);
+        //   repeater_1 -> adder
+        app.world_mut().commands().entity(adder_ents.input_ports[0])
+            .add_one_related::<ConnectionStart>(repeater_1_ents.output_ports[0]);
+        //   repeater_2 -> adder
+        app.world_mut().commands().entity(adder_ents.input_ports[1])
+            .add_one_related::<ConnectionStart>(repeater_2_ents.output_ports[0]);
 
-    // Confirm that adder's output port is the sum of the two constants
-    let result = app.world().get::<Port>(adder_ents.output_ports[0]).unwrap().0;
-    assert!(result.is_some());
-    assert_eq!(result.unwrap(), 3);
+        // Systems
+        app.add_systems(Update, resolve);
+
+        // Perform update
+        app.update();
+
+        // Confirm that adder's output port is the sum of the two constants
+        let result = app.world().get::<Port>(adder_ents.output_ports[0]).unwrap().0;
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), 3);
+    }
 }
