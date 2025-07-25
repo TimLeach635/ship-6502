@@ -332,6 +332,6 @@ fn debug_indicators(
 fn debug_all_clicks(
     click: Trigger<Pointer<Click>>,
 ) {
-    info!("Target: {:?}", click.target);
-    info!("Target(): {:?}", click.target());
+    trace!("Target: {:?}", click.target);
+    trace!("Target(): {:?}", click.target());
 }
