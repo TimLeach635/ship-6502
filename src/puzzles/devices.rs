@@ -154,17 +154,12 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
                     input_port_start_y - i as f32 * (port_height + gap_between_ports),
                     1.0
                 ),
-            )).id();
-
-            #[cfg(debug_assertions)]
-            {
-                let port_debug_label = self.spawn((
-                    Text2d("".to_owned()),
+                children![(
+                    Text2d("<none>".to_owned()),
                     TextColor(Color::BLACK),
                     Anchor::BottomRight,
-                )).id();
-                self.entity(input_port).add_child(port_debug_label);
-            }
+                )],
+            )).id();
 
             self.entity(base)
                 .add_one_related::<InputPort>(input_port)
@@ -185,17 +180,12 @@ impl<'w, 's> SpawnDeviceCommandExt for Commands<'w, 's> {
                     output_port_start_y - i as f32 * (port_height + gap_between_ports),
                     1.0
                 ),
-            )).id();
-
-            #[cfg(debug_assertions)]
-            {
-                let port_debug_label = self.spawn((
-                    Text2d("".to_owned()),
+                children![(
+                    Text2d("<none>".to_owned()),
                     TextColor(Color::BLACK),
                     Anchor::BottomLeft,
-                )).id();
-                self.entity(output_port).add_child(port_debug_label);
-            }
+                )],
+            )).id();
 
             self.entity(base)
                 .add_one_related::<OutputPort>(output_port)

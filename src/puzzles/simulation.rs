@@ -15,11 +15,14 @@ impl Plugin for SimulationPlugin {
             PreUpdate,
             resolve.run_if(on_event::<StepSimulation>),
         );
-
-        #[cfg(debug_assertions)]
-        {
-            app.add_systems(Update, debug_show_port_values);
-        }
+        app.add_systems(
+            Update,
+            // TODO: If I make this only run on the event, it doesn't incorporate the values
+            //  from the resolution. I suspect that this is because `resolve` isn't an exclusive
+            //  system, but I could be wrong. For example, surely the PreUpdate stuff will all
+            //  complete and the commands are run before Update happens?
+            update_port_value_display/*.run_if(on_event::<StepSimulation>)*/,
+        );
     }
 }
 
@@ -223,6 +226,23 @@ fn reset_resolutions(q_resolvable: Query<&mut Resolvable>) {
     }
 }
 
+fn update_port_value_display(
+    q_ports: Query<(&Port, &Children)>,
+    mut q_text: Query<&mut Text2d>,
+) {
+    for (port, children) in q_ports {
+        for child_ent in children {
+            if let Ok(mut text) = q_text.get_mut(*child_ent) {
+                text.0 = if let Some(value) = port.0 {
+                    value.to_string()
+                } else {
+                    "<none>".to_owned()
+                }
+            }
+        }
+    }
+}
+
 #[test]
 fn constant_device_outputs_its_value() {
     let mut app = App::new();
@@ -289,23 +309,4 @@ fn complicated_network_can_resolve_all_devices() {
     let result = app.world().get::<Port>(adder_ents.output_ports[0]).unwrap().0;
     assert!(result.is_some());
     assert_eq!(result.unwrap(), 3);
-}
-
-// Debug
-#[cfg(debug_assertions)]
-fn debug_show_port_values(
-    q_ports: Query<(&Port, &Children)>,
-    mut q_text: Query<&mut Text2d>,
-) {
-    for (port, children) in q_ports {
-        for child_ent in children {
-            if let Ok(mut text) = q_text.get_mut(*child_ent) {
-                text.0 = if let Some(value) = port.0 {
-                    value.to_string()
-                } else {
-                    "<none>".to_owned()
-                }
-            }
-        }
-    }
 }
