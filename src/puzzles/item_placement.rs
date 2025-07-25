@@ -6,6 +6,7 @@ use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 enum ItemKind {
     ConstantDevice,
+    CounterDevice,
     RepeaterDevice,
     AdderDevice,
 }
@@ -117,12 +118,17 @@ fn setup(
         ItemSpecification {
             kind: ItemKind::ConstantDevice,
             name: "Constant device".to_owned(),
-            button_hue: 30.0,
+            button_hue: 0.0,
+        },
+        ItemSpecification {
+            kind: ItemKind::CounterDevice,
+            name: "Counter device".to_owned(),
+            button_hue: 90.0,
         },
         ItemSpecification {
             kind: ItemKind::RepeaterDevice,
             name: "Repeater device".to_owned(),
-            button_hue: 150.0,
+            button_hue: 180.0,
         },
         ItemSpecification {
             kind: ItemKind::AdderDevice,
@@ -198,7 +204,29 @@ fn place_item_on_click(
             commands.entity(entities.base).add_child(label);
 
             entities.base
-        }
+        },
+        ItemKind::CounterDevice => {
+            let entities = commands.spawn_device(
+                // TODO: Allow the user to choose the value
+                DeviceKind::Counter,
+                meshes.into_inner(),
+                materials.into_inner()
+            );
+
+            // Add connection observers on ports
+            for ent in entities.output_ports.iter() {  // Can omit inputs as there aren't any!
+                commands.entity(*ent).observe(on_click_connect);
+            }
+
+            // Add text showing value
+            let label = commands.spawn((
+                Text2d("Cnt".to_owned()),
+                TextColor(Color::BLACK),
+            )).id();
+            commands.entity(entities.base).add_child(label);
+
+            entities.base
+        },
         ItemKind::RepeaterDevice => {
             let entities = commands.spawn_device(
                 DeviceKind::Repeater,
@@ -321,6 +349,7 @@ fn debug_indicators(
             },
             match placing.0 {
                 ItemKind::ConstantDevice => "Placing: Constant device",
+                ItemKind::CounterDevice => "Placing: Counter device",
                 ItemKind::RepeaterDevice => "Placing: Repeater device",
                 ItemKind::AdderDevice => "Placing: Adder device",
             },

@@ -94,7 +94,7 @@ fn on_click_step(
 // TODO: It's very possible this should be an exclusive system!
 fn resolve(
     q_device_entities: Query<Entity, With<Device>>,
-    q_devices: Query<(&Device, Option<&InputPorts>, Option<&OutputPorts>)>,
+    mut q_devices: Query<(&mut Device, Option<&InputPorts>, Option<&OutputPorts>)>,
     mut q_input_ports: Query<&mut Port, (Or<(With<InputPort>, With<ConnectionEnds>)>, (Without<OutputPort>, Without<ConnectionStart>))>,
     mut q_output_ports: Query<(&mut Port, Option<&ConnectionStart>), (With<OutputPort>, Without<ConnectionEnds>)>,
 ) {
@@ -105,7 +105,7 @@ fn resolve(
     let max_count = device_queue.len();
 
     while let Some(device_ent) = device_queue.pop_front() {
-        let (device, inputs_opt, outputs_opt) = q_devices.get(device_ent)
+        let (mut device, inputs_opt, outputs_opt) = q_devices.get_mut(device_ent)
             .expect("Device should always be in query");
 
         // We can resolve this device if all the inputs are known.
@@ -156,6 +156,22 @@ fn resolve(
                             .expect("Should not have an input port without a Port component");
                         connected_input_port.0 = Some(value);
                     }
+                },
+                Device::Counter { value, output_port: out_ent } => {
+                    let (mut output_port, outgoing_conn_opt) = q_output_ports.get_mut(out_ent)
+                        .expect("Should not have an output port without a Port component");
+                    output_port.0 = Some(value);
+
+                    if let Some(outgoing_conn) = outgoing_conn_opt {
+                        let mut connected_input_port = q_input_ports.get_mut(outgoing_conn.get())
+                            .expect("Should not have an input port without a Port component");
+                        connected_input_port.0 = Some(value);
+                    }
+
+                    // Then update the counter
+                    // TODO: I don't think this should happen here, but I want to get some more
+                    //  devices written before sorting it
+                    *device = Device::Counter { value: value + 1, output_port: out_ent };
                 },
                 Device::Repeater { input_port, output_port } => {
                     let input_port_value = q_input_ports.get(input_port)
