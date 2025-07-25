@@ -29,15 +29,6 @@ impl Plugin for SimulationPlugin {
 #[derive(Event)]
 pub struct StepSimulation;
 
-#[derive(PartialEq)]
-enum ResolutionState {
-    Unresolved,
-    Resolved,
-}
-
-#[derive(Component)]
-struct Resolvable(ResolutionState);
-
 #[derive(Component)]
 #[relationship(relationship_target = InputPorts)]
 pub struct InputPort(Entity);
@@ -217,12 +208,6 @@ fn resolve(
                 },
             }
         }
-    }
-}
-
-fn reset_resolutions(q_resolvable: Query<&mut Resolvable>) {
-    for mut resolvable in q_resolvable {
-        resolvable.0 = ResolutionState::Unresolved;
     }
 }
 
