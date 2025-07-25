@@ -1,34 +1,14 @@
-name: Rust
+name: Deploy to GitHub pages
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "release" ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ github.ref || github.run_id }}
-    - uses: dtolnay/rust-toolchain@stable
-    - name: Install alsa and udev
-      run: sudo apt-get update; sudo apt-get install --no-install-recommends libasound2-dev libudev-dev
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-  web:
+  deploy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
