@@ -12,16 +12,17 @@ impl Plugin for SimulationPlugin {
         app.add_event::<StepSimulation>();
         app.add_systems(Startup, setup);
         app.add_systems(
-            PreUpdate,
-            resolve.run_if(on_event::<StepSimulation>),
-        );
-        app.add_systems(
             Update,
-            // TODO: If I make this only run on the event, it doesn't incorporate the values
-            //  from the resolution. I suspect that this is because `resolve` isn't an exclusive
-            //  system, but I could be wrong. For example, surely the PreUpdate stuff will all
-            //  complete and the commands are run before Update happens?
-            update_port_value_display/*.run_if(on_event::<StepSimulation>)*/,
+            (
+                resolve
+                    .run_if(on_event::<StepSimulation>),
+                advance_devices
+                    .run_if(on_event::<StepSimulation>)
+                    .after(resolve),
+                update_port_value_display
+                    .run_if(on_event::<StepSimulation>)
+                    .after(resolve),
+            )
         );
     }
 }
@@ -85,22 +86,21 @@ fn on_click_step(
     ev_step.write(StepSimulation);
 }
 
-// TODO: It's very possible this should be an exclusive system!
 fn resolve(
-    q_device_entities: Query<Entity, With<Device>>,
-    mut q_devices: Query<(&mut Device, Option<&InputPorts>, Option<&OutputPorts>)>,
-    mut q_input_ports: Query<&mut Port, (Or<(With<InputPort>, With<ConnectionEnds>)>, (Without<OutputPort>, Without<ConnectionStart>))>,
-    mut q_output_ports: Query<(&mut Port, Option<&ConnectionStart>), (With<OutputPort>, Without<ConnectionEnds>)>,
+    world: &mut World,
 ) {
+    let mut q_device_entities = world.query_filtered::<Entity, With<Device>>();
+
     let mut device_queue: VecDeque<Entity> = VecDeque::new();
-    device_queue.extend(q_device_entities);
+    device_queue.extend(q_device_entities.iter(world));
     let mut visit_counts: EntityHashMap<usize> = EntityHashMap::new();
-    visit_counts.extend(q_device_entities.iter().map(|ent| (ent, 0)));  // counts start at 0
+    visit_counts.extend(q_device_entities.iter(world).map(|ent| (ent, 0)));  // counts start at 0
     let max_count = device_queue.len();
 
     while let Some(device_ent) = device_queue.pop_front() {
-        let (mut device, inputs_opt, outputs_opt) = q_devices.get_mut(device_ent)
-            .expect("Device should always be in query");
+        let device = world.get(device_ent).unwrap();
+        let inputs_opt = world.get::<InputPorts>(device_ent);
+        let outputs_opt = world.get::<OutputPorts>(device_ent);
 
         // We can resolve this device if all the inputs are known.
         // (For future - maybe we can even if some of them aren't!)
@@ -108,8 +108,15 @@ fn resolve(
         // to allow other devices to also resolve.
         if let Some(inputs) = inputs_opt {  // If no inputs then it always resolves
             for input_entity in inputs.iter() {
-                let input_port = q_input_ports.get(input_entity)
+                let input_port = world.get::<Port>(input_entity)
+                    // TODO: Either add as a required component, or consolidate the components
                     .expect("Should not have an input port without a Port component");
+                
+                // If no connections end on this component, then we cannot resolve
+                if world.get::<ConnectionEnds>(input_entity).is_none() {
+                    todo!("Gracefully handle when an input is not connected");
+                }
+                
                 if input_port.0.is_none() {
                     // At least one of the input ports of this device has no value,
                     // so (for now!) we assume we cannot resolve.
@@ -126,9 +133,7 @@ fn resolve(
                         device_queue.push_back(device_ent);
                         continue;
                     } else {
-                        // TODO: Handle gracefully. In the game this definitely should not panic
-                        //  and instead will just be handled. This is not a crash situation!
-                        panic!("Unresolvable");
+                        todo!("Gracefully handle a probable cycle");
                     }
                 }
             }
@@ -140,73 +145,73 @@ fn resolve(
         // This is arbitrary, and it could be either way, but we have to be consistent!
         if outputs_opt.is_some() {
             match *device {
-                Device::Constant { value, output_port } => {
-                    let (mut output_port, outgoing_conn_opt) = q_output_ports.get_mut(output_port)
-                        .expect("Should not have an output port without a Port component");
-                    output_port.0 = Some(value);
-
-                    if let Some(outgoing_conn) = outgoing_conn_opt {
-                        let mut connected_input_port = q_input_ports.get_mut(outgoing_conn.get())
-                            .expect("Should not have an input port without a Port component");
-                        connected_input_port.0 = Some(value);
-                    }
+                Device::Constant { value, output_port: out_ent } => {
+                    set_output_value_and_update_connection_if_exists(world, out_ent, value);
                 },
                 Device::Counter { value, output_port: out_ent } => {
-                    let (mut output_port, outgoing_conn_opt) = q_output_ports.get_mut(out_ent)
-                        .expect("Should not have an output port without a Port component");
-                    output_port.0 = Some(value);
-
-                    if let Some(outgoing_conn) = outgoing_conn_opt {
-                        let mut connected_input_port = q_input_ports.get_mut(outgoing_conn.get())
-                            .expect("Should not have an input port without a Port component");
-                        connected_input_port.0 = Some(value);
-                    }
-
-                    // Then update the counter
-                    // TODO: I don't think this should happen here, but I want to get some more
-                    //  devices written before sorting it
-                    *device = Device::Counter { value: value + 1, output_port: out_ent };
+                    set_output_value_and_update_connection_if_exists(world, out_ent, value);
                 },
-                Device::Repeater { input_port, output_port } => {
-                    let input_port_value = q_input_ports.get(input_port)
+                Device::Repeater { input_port, output_port: out_ent } => {
+                    let input_port_value = world.get::<Port>(input_port)
                         .expect("Directly-specified input port should be an input port")
                         .0
                         .expect("At this point, all the input ports to this device should have known values");
-                    
-                    
-                    let (mut output_port, outgoing_conn_opt) = q_output_ports.get_mut(output_port)
-                        .expect("Should not have an output port without a Port component");
-                    output_port.0 = Some(input_port_value);
 
-                    if let Some(outgoing_conn) = outgoing_conn_opt {
-                        let mut connected_input_port = q_input_ports.get_mut(outgoing_conn.get())
-                            .expect("Should not have an input port without a Port component");
-                        connected_input_port.0 = Some(input_port_value);
-                    }
+                    set_output_value_and_update_connection_if_exists(world, out_ent, input_port_value);
                 },
-                Device::Adder { input_port_1, input_port_2, output_port } => {
-                    let input_port_1_value = q_input_ports.get(input_port_1)
+                Device::Adder { input_port_1, input_port_2, output_port: out_ent } => {
+                    let input_port_1_value = world.get::<Port>(input_port_1)
                         .expect("Directly-specified input port should be an input port")
                         .0
                         .expect("At this point, all the input ports to this device should have known values");
-                    let input_port_2_value = q_input_ports.get(input_port_2)
+                    let input_port_2_value = world.get::<Port>(input_port_2)
                         .expect("Directly-specified input port should be an input port")
                         .0
                         .expect("At this point, all the input ports to this device should have known values");
                     let sum = input_port_1_value + input_port_2_value;
 
-
-                    let (mut output_port, outgoing_conn_opt) = q_output_ports.get_mut(output_port)
-                        .expect("Should not have an output port without a Port component");
-                    output_port.0 = Some(sum);
-
-                    if let Some(outgoing_conn) = outgoing_conn_opt {
-                        let mut connected_input_port = q_input_ports.get_mut(outgoing_conn.get())
-                            .expect("Should not have an input port without a Port component");
-                        connected_input_port.0 = Some(sum);
-                    }
+                    set_output_value_and_update_connection_if_exists(world, out_ent, sum);
                 },
             }
+        }
+    }
+}
+
+/// What a verbosely-named function!
+///
+/// When passed an output port entity, this function:
+/// 1. Sets its value to the provided one
+/// 2. Checks to see if there is a connection beginning at that port
+/// 3. If there is, also sets the value of the connected port to the same value
+// TODO: Should this function return a Result?
+fn set_output_value_and_update_connection_if_exists(
+    world: &mut World,
+    output_port_entity: Entity,
+    value: u32,
+) {
+    let mut output_port = world.get_mut::<Port>(output_port_entity)
+        .expect("Should not have an output port without a Port component");
+    output_port.0 = Some(value);
+
+    if let Some(connection_start) = world.get::<ConnectionStart>(output_port_entity) {
+        let mut connected_input_port = world.get_mut::<Port>(connection_start.get())
+            .expect("Should not have an input port without a Port component");
+        connected_input_port.0 = Some(value);
+    }
+}
+
+/// Advance all devices that have a changing internal state. Should be called between simulation
+/// steps – by convention, we call it immediately after a step.
+fn advance_devices(
+    q_devices: Query<&mut Device>,
+) {
+    for mut device in q_devices {
+        match *device {
+            Device::Counter { value, output_port } => {
+                *device = Device::Counter { value: value + 1, output_port }
+            }
+            // No other devices have an updating internal state
+            _ => continue,
         }
     }
 }
