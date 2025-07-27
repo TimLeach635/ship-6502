@@ -97,7 +97,7 @@ fn resolve(
     visit_counts.extend(q_device_entities.iter(world).map(|ent| (ent, 0)));  // counts start at 0
     let max_count = device_queue.len();
 
-    while let Some(device_ent) = device_queue.pop_front() {
+    'entities: while let Some(device_ent) = device_queue.pop_front() {
         let device = world.get(device_ent).unwrap();
         let inputs_opt = world.get::<InputPorts>(device_ent);
         let outputs_opt = world.get::<OutputPorts>(device_ent);
@@ -131,7 +131,7 @@ fn resolve(
                     if visit_count < max_count {
                         visit_counts.insert(device_ent, visit_count + 1);
                         device_queue.push_back(device_ent);
-                        continue;
+                        continue 'entities;
                     } else {
                         todo!("Gracefully handle a probable cycle");
                     }
