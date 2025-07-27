@@ -291,7 +291,6 @@ fn place_item_on_click(
         },
         ItemKind::CounterDevice => {
             let entities = commands.spawn_device(
-                // TODO: Allow the user to choose the value
                 DeviceKind::Counter,
                 meshes.into_inner(),
                 materials.into_inner()
