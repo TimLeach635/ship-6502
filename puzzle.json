@@ -1,0 +1,9 @@
+{
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "Output",
+      "values": [10, 12, 14, 16, 18, 20]
+    }
+  ]
+}

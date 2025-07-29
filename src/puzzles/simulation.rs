@@ -1,3 +1,4 @@
+use crate::puzzles::item_placement::{AcceptsConnectionStart, AcceptsConnectionEnd};
 use std::collections::VecDeque;
 use bevy::ecs::entity::EntityHashMap;
 use bevy::ecs::relationship::Relationship;
@@ -32,6 +33,7 @@ pub struct StepSimulation;
 
 #[derive(Component)]
 #[relationship(relationship_target = InputPorts)]
+#[require(AcceptsConnectionEnd)]
 pub struct InputPort(Entity);
 
 #[derive(Component)]
@@ -40,6 +42,7 @@ pub struct InputPorts(Vec<Entity>);
 
 #[derive(Component)]
 #[relationship(relationship_target = OutputPorts)]
+#[require(AcceptsConnectionStart)]
 pub struct OutputPort(Entity);
 
 #[derive(Component)]
@@ -54,11 +57,7 @@ pub struct ConnectionStart(pub Entity);
 #[relationship_target(relationship = ConnectionStart)]
 pub struct ConnectionEnds(Vec<Entity>);
 
-/// Represents an output port of the entire level.
-#[derive(Component)]
-struct LevelOutput;
-
-#[derive(Component)]
+#[derive(Component, Default)]
 // TODO: Too specific? Should this be ValueHolder?
 pub struct Port(pub Option<u32>);
 

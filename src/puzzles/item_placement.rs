@@ -1,7 +1,7 @@
 use bevy::color::palettes::basic::RED;
 use bevy::prelude::*;
 use crate::puzzles::devices::{DeviceKind, SpawnDeviceCommandExt};
-use crate::puzzles::simulation::{ConnectionStart, InputPort, OutputPort};
+use crate::puzzles::simulation::ConnectionStart;
 use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
@@ -53,6 +53,7 @@ impl Plugin for ItemPlacementPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<ItemPlacementState>();
         app.add_systems(Startup, setup);
+        app.add_systems(PostStartup, make_all_ports_connectable);
         app.add_event::<SelectItem>();
         app.add_event::<DeselectItem>();
         app.add_systems(PostUpdate, (display_port_connections, display_ghost_connection)
@@ -69,7 +70,7 @@ impl Plugin for ItemPlacementPlugin {
 fn on_click_connect(
     click: Trigger<Pointer<Click>>,
     mut commands: Commands,
-    q_ports: Query<(Option<&InputPort>, Option<&OutputPort>), Or<(With<InputPort>, With<OutputPort>)>>,
+    q_ports: Query<(Option<&AcceptsConnectionEnd>, Option<&AcceptsConnectionStart>), Or<(With<AcceptsConnectionEnd>, With<AcceptsConnectionStart>)>>,
     placement_state: Res<State<ItemPlacementState>>,
     mut next_placement_state: ResMut<NextState<ItemPlacementState>>,
     mut connection_origin: ResMut<ConnectionOrigin>,
@@ -144,7 +145,7 @@ fn display_port_connections(
 /// Display a "ghost connection" if you're currently making a connection between ports
 fn display_ghost_connection(
     mut gizmos: Gizmos,
-    q_port_transforms: Query<&GlobalTransform, (Or<(With<InputPort>, With<OutputPort>)>, Without<Window>, Without<Camera>)>,
+    q_port_transforms: Query<&GlobalTransform, (Or<(With<AcceptsConnectionStart>, With<AcceptsConnectionEnd>)>, Without<Window>, Without<Camera>)>,
     q_windows: Query<&Window>,
     q_cameras: Query<(&Camera, &GlobalTransform)>,
     placement_state: Res<State<ItemPlacementState>>,
@@ -191,6 +192,12 @@ struct SelectItem;
 
 #[derive(Event)]
 struct DeselectItem;
+
+#[derive(Component, Default)]
+pub struct AcceptsConnectionStart;
+
+#[derive(Component, Default)]
+pub struct AcceptsConnectionEnd;
 
 fn setup(
     mut commands: Commands,
@@ -394,6 +401,15 @@ fn on_button_click(
     }
 
     click.propagate(false);
+}
+
+fn make_all_ports_connectable(
+    mut commands: Commands,
+    q_ports: Query<Entity, Or<(With<AcceptsConnectionStart>, With<AcceptsConnectionEnd>)>>,
+) {
+    for port in q_ports {
+        commands.entity(port).observe(on_click_connect);
+    }
 }
 
 // For debugging
