@@ -34,7 +34,7 @@ impl Plugin for SimulationPlugin {
 }
 
 #[derive(Resource)]
-pub struct SimulationStep(usize);
+pub struct SimulationStep(pub(crate) usize);
 
 #[derive(Event)]
 pub struct StepSimulation;
