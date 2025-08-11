@@ -23,10 +23,18 @@ impl Plugin for SimulationPlugin {
                 update_port_value_display
                     .run_if(on_event::<StepSimulation>)
                     .after(resolve),
+                advance_step_number
+                    .run_if(on_event::<StepSimulation>),
+                update_step_number_display
+                    .run_if(on_event::<StepSimulation>)
+                    .after(advance_step_number),
             )
         );
     }
 }
+
+#[derive(Resource)]
+pub struct SimulationStep(usize);
 
 #[derive(Event)]
 pub struct StepSimulation;
@@ -61,7 +69,25 @@ pub struct ConnectionEnds(Vec<Entity>);
 // TODO: Too specific? Should this be ValueHolder?
 pub struct Port(pub Option<u32>);
 
+#[derive(Component)]
+#[require(Text)]
+struct SimulationStepLabel;
+
 fn setup(mut commands: Commands) {
+    commands.insert_resource(SimulationStep(0));
+
+    // Text for which step it is
+    commands.spawn((
+        SimulationStepLabel,
+        Text::new("Step 0"),
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0),
+            right: Val::Px(12.0),
+            ..default()
+        },
+    ));
+
     // Buttons for simulation control
     let button_parent = commands.spawn((
         Node {
@@ -229,6 +255,21 @@ fn update_port_value_display(
                 }
             }
         }
+    }
+}
+
+fn advance_step_number(
+    mut simulation_step: ResMut<SimulationStep>,
+) {
+    simulation_step.0 += 1;
+}
+
+fn update_step_number_display(
+    simulation_step: Res<SimulationStep>,
+    mut q_text: Query<&mut Text, With<SimulationStepLabel>>,
+) {
+    for mut text in q_text.iter_mut() {
+        text.0 = format!("Step {}", simulation_step.0);
     }
 }
 
