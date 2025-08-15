@@ -12,6 +12,10 @@ impl Plugin for PuzzlePlugin {
             setup,
             create_ports_for_puzzle.after(setup),
         ))
+        .add_systems(Update, (
+            update_output_display
+                .run_if(on_event::<StepSimulation>),
+        ))
         .add_systems(PostUpdate, (
             save_output_values
                 .run_if(on_event::<StepSimulation>),
@@ -91,6 +95,18 @@ fn setup(mut commands: Commands) {
     let puzzle: PuzzleSpec = serde_json::from_reader(puzzle_file)
         .expect("Should be able to parse puzzle.json as a PuzzleSpec");
     commands.insert_resource(Puzzle::from(&puzzle));
+
+    // Text for output values
+    commands.spawn((
+        OutputDisplay,
+        Text::new("Values will go here"),
+        Node {
+            position_type: PositionType::Absolute,
+            bottom: Val::Px(12.0 + 65.0 + 12.0),
+            right: Val::Px(12.0),
+            ..default()
+        },
+    ));
 }
 
 fn create_ports_for_puzzle(
@@ -160,6 +176,31 @@ fn save_output_values(
                 output_values.received_values.len(),
                 simulation_step.0
             );
+        }
+    }
+}
+
+#[derive(Component)]
+struct OutputDisplay;
+
+fn update_output_display(
+    puzzle: Res<Puzzle>,
+    mut q_text: Query<&mut Text, With<OutputDisplay>>,
+) {
+    for mut text in q_text.iter_mut() {
+        text.0 = String::new();
+        for output in puzzle.outputs.iter() {
+            text.0.push_str(&output.name);
+            text.0.push_str(": ");
+            for (idx, exp_value) in output.expected_values.iter().enumerate() {
+                text.0.push_str(format!(
+                    "{} ({}), ",
+                    output.received_values.get(idx)
+                        .map(|v| v.to_string())
+                        .unwrap_or("_".to_owned()),
+                    exp_value,
+                ).as_str());
+            }
         }
     }
 }
