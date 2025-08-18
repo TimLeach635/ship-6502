@@ -1,9 +1,8 @@
-use crate::puzzles::item_placement::{AcceptsConnectionStart, AcceptsConnectionEnd};
 use std::collections::VecDeque;
 use bevy::ecs::entity::EntityHashMap;
 use bevy::ecs::relationship::Relationship;
 use bevy::prelude::*;
-use crate::puzzles::devices::Device;
+use crate::puzzles::types::*;
 use crate::ui::buttons::SpawnButtonCommandExt;
 
 pub struct SimulationPlugin;
@@ -38,36 +37,6 @@ pub struct SimulationStep(pub(crate) usize);
 
 #[derive(Event)]
 pub struct StepSimulation;
-
-#[derive(Component)]
-#[relationship(relationship_target = InputPorts)]
-#[require(AcceptsConnectionEnd)]
-pub struct InputPort(Entity);
-
-#[derive(Component)]
-#[relationship_target(relationship = InputPort)]
-pub struct InputPorts(Vec<Entity>);
-
-#[derive(Component)]
-#[relationship(relationship_target = OutputPorts)]
-#[require(AcceptsConnectionStart)]
-pub struct OutputPort(Entity);
-
-#[derive(Component)]
-#[relationship_target(relationship = OutputPort)]
-pub struct OutputPorts(Vec<Entity>);
-
-#[derive(Component)]
-#[relationship(relationship_target = ConnectionEnds)]
-pub struct ConnectionStart(pub Entity);
-
-#[derive(Component)]
-#[relationship_target(relationship = ConnectionStart)]
-pub struct ConnectionEnds(Vec<Entity>);
-
-#[derive(Component, Default)]
-// TODO: Too specific? Should this be ValueHolder?
-pub struct Port(pub Option<u32>);
 
 #[derive(Component)]
 #[require(Text)]
@@ -137,7 +106,7 @@ fn resolve(
                     // TODO: Either add as a required component, or consolidate the components
                     .expect("Should not have an input port without a Port component");
                 
-                // If no connections end on this component, then we cannot resolve
+                // If no connection end on this component, then we cannot resolve
                 if world.get::<ConnectionEnds>(input_entity).is_none() {
                     todo!("Gracefully handle when an input is not connected");
                 }
@@ -275,7 +244,7 @@ fn update_step_number_display(
 
 #[cfg(test)]
 mod tests {
-    use crate::puzzles::devices::{DeviceKind, SpawnDeviceCommandExt};
+    use crate::puzzles::device::{DeviceKind, SpawnDeviceCommandExt};
     use super::*;
 
     #[test]

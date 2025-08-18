@@ -1,7 +1,7 @@
 use bevy::color::palettes::basic::RED;
 use bevy::prelude::*;
-use crate::puzzles::devices::{DeviceKind, SpawnDeviceCommandExt};
-use crate::puzzles::simulation::ConnectionStart;
+use crate::puzzles::types::*;
+use crate::puzzles::device::{DeviceKind, SpawnDeviceCommandExt};
 use crate::ui::buttons::{ButtonSelected, SpawnButtonCommandExt};
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
@@ -192,12 +192,6 @@ struct SelectItem;
 
 #[derive(Event)]
 struct DeselectItem;
-
-#[derive(Component, Default)]
-pub struct AcceptsConnectionStart;
-
-#[derive(Component, Default)]
-pub struct AcceptsConnectionEnd;
 
 fn setup(
     mut commands: Commands,

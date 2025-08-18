@@ -1,7 +1,7 @@
 use std::cmp::max;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
-use crate::puzzles::simulation::{InputPort, OutputPort, Port};
+use crate::puzzles::types::*;
 
 pub enum DeviceKind {
     Constant {
@@ -10,27 +10,6 @@ pub enum DeviceKind {
     Counter,
     Repeater,
     Adder,
-}
-
-#[derive(Component)]
-pub enum Device {
-    Constant {
-        value: u32,
-        output_port: Entity,
-    },
-    Counter {
-        value: u32,
-        output_port: Entity,
-    },
-    Repeater {
-        input_port: Entity,
-        output_port: Entity,
-    },
-    Adder {
-        input_port_1: Entity,
-        input_port_2: Entity,
-        output_port: Entity,
-    },
 }
 
 pub struct DeviceEntities {

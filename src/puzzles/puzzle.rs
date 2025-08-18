@@ -1,5 +1,5 @@
-use crate::puzzles::item_placement::{AcceptsConnectionStart, AcceptsConnectionEnd};
-use crate::puzzles::simulation::{Port, SimulationStep, StepSimulation};
+use crate::puzzles::types::*;
+use crate::puzzles::simulation::{SimulationStep, StepSimulation};
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use serde::Deserialize;
@@ -21,18 +21,6 @@ impl Plugin for PuzzlePlugin {
                 .run_if(on_event::<StepSimulation>),
         ));
     }
-}
-
-#[derive(Component)]
-#[require(Port, AcceptsConnectionStart)]
-struct PuzzleInput {
-    name: String,
-}
-
-#[derive(Component)]
-#[require(Port, AcceptsConnectionEnd)]
-struct PuzzleOutput {
-    name: String,
 }
 
 /// Represents either an input or an output of a puzzle.
